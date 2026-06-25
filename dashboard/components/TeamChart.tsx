@@ -36,8 +36,8 @@ const KPI_COLORS = ["#10b981", "#f97316", "#3b82f6"] as const;
 
 const SVG_W   = 820;
 const SVG_H   = 400;
-const PAD_L   = 52;
-const PAD_R   = 24;
+const PAD_L   = 2;   // labels do eixo Y ficam dentro do gráfico
+const PAD_R   = 48;  // espaço para labels de avg à direita
 const PAD_T   = 28;
 const PAD_B   = 72;
 const CHART_W = SVG_W - PAD_L - PAD_R;
@@ -94,17 +94,19 @@ function GroupedBarChart({ teams, kpis, uMax, uAvg }: BarChartProps) {
   return (
     <svg viewBox={`0 0 ${SVG_W} ${SVG_H}`} className="w-full" style={{ maxHeight: 400 }}>
 
-      {/* Grid lines + Y labels (%) */}
+      {/* Grid lines + Y labels sobrepostos (inside chart) */}
       {yTicks.map((tick) => (
         <g key={tick}>
           <line
             x1={PAD_L} y1={toY(tick)} x2={PAD_L + CHART_W} y2={toY(tick)}
             stroke={tick === 0 ? "#374151" : "#1f2937"} strokeWidth="1"
           />
-          <text x={PAD_L - 6} y={toY(tick) + 4}
-            textAnchor="end" fill="#4b5563" fontSize="10">
-            {tick}%
-          </text>
+          {tick > 0 && (
+            <text x={PAD_L + 4} y={toY(tick) - 3}
+              textAnchor="start" fill="#4b5563" fontSize="9">
+              {tick}%
+            </text>
+          )}
         </g>
       ))}
 
@@ -364,9 +366,9 @@ export default function TeamChart({ times }: { times: TimeStat[] }) {
       </div>
 
       {/* ── Gráfico de colunas agrupadas (largura total) ────────── */}
-      <div className="bg-gray-900/50 rounded-xl border border-gray-700/50 px-4 pt-4 pb-3">
-        {/* Legend */}
-        <div className="flex flex-wrap items-center gap-x-5 gap-y-1 mb-3">
+      <div className="bg-gray-900/50 rounded-xl border border-gray-700/50 pt-4 pb-3">
+        {/* Legend com padding igual ao filtro */}
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-1 px-4 mb-3">
           {kpis.map((k, ki) => (
             <span key={String(k)} className="flex items-center gap-2 text-xs">
               <span className="w-4 h-3 rounded-sm shrink-0"
@@ -381,12 +383,15 @@ export default function TeamChart({ times }: { times: TimeStat[] }) {
           </span>
         </div>
 
-        <GroupedBarChart
-          teams={chartTeams}
-          kpis={kpis}
-          uMax={uMax}
-          uAvg={uAvg}
-        />
+        {/* SVG com margem mínima nas laterais */}
+        <div className="px-1">
+          <GroupedBarChart
+            teams={chartTeams}
+            kpis={kpis}
+            uMax={uMax}
+            uAvg={uAvg}
+          />
+        </div>
       </div>
     </div>
   );
