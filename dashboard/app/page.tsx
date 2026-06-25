@@ -2,7 +2,6 @@ import { Suspense } from "react";
 import UpdateButton from "@/components/UpdateButton";
 import PlayerPanel from "@/components/PlayerPanel";
 import TeamPanel from "@/components/TeamPanel";
-import PositionPanel from "@/components/PositionPanel";
 
 // Tabs são controladas via searchParam (server-side, sem JS extra)
 type Props = { searchParams: Promise<{ tab?: string }> };
@@ -10,7 +9,6 @@ type Props = { searchParams: Promise<{ tab?: string }> };
 const TABS = [
   { id: "jogadores", label: "Jogadores" },
   { id: "times",     label: "Times" },
-  { id: "posicoes",  label: "Posições" },
 ];
 
 function LoadingSkeleton() {
@@ -65,7 +63,6 @@ export default async function Home({ searchParams }: Props) {
       <Suspense fallback={<LoadingSkeleton />}>
         {activeTab === "jogadores" && <PlayerPanel />}
         {activeTab === "times"     && <TeamPanel />}
-        {activeTab === "posicoes"  && <PositionPanel />}
       </Suspense>
 
       {/* ── Rodapé ─────────────────────────────────────────────────── */}
