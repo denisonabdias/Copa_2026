@@ -71,6 +71,16 @@ export async function getTimeStats(): Promise<TimeStat[]> {
   }));
 }
 
+export async function getLastUpdate(): Promise<string | null> {
+  const { data } = await supabase
+    .from("disciplina_jogadores")
+    .select("updated_at")
+    .order("updated_at", { ascending: false })
+    .limit(1)
+    .single();
+  return data?.updated_at ?? null;
+}
+
 export async function getPosicaoStats(): Promise<PosicaoStat[]> {
   const { data, error } = await supabase
     .from("disciplina_por_posicao")

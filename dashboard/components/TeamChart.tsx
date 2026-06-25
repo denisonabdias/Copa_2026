@@ -53,6 +53,13 @@ function fmtVal(v: number, key: KpiKey) {
   return key.startsWith("media_") ? v.toFixed(1) : String(Math.round(v));
 }
 
+function fmtDate(iso: string) {
+  return new Date(iso).toLocaleString("pt-BR", {
+    day: "2-digit", month: "2-digit", year: "numeric",
+    hour: "2-digit", minute: "2-digit",
+  });
+}
+
 /* ── Grouped Bar Chart SVG ───────────────────────────────────────────── */
 
 interface BarChartProps {
@@ -235,7 +242,7 @@ function StatsTable({ teams, kpis }: { teams: TimeStat[]; kpis: KpiKey[] }) {
 
 /* ── Main component ───────────────────────────────────────────────────── */
 
-export default function TeamChart({ times }: { times: TimeStat[] }) {
+export default function TeamChart({ times, lastUpdated }: { times: TimeStat[]; lastUpdated: string | null }) {
   const [kpis,       setKpis]       = useState<KpiKey[]>(["total_faltas_cometidas"]);
   const [nameSearch, setNameSearch] = useState<string>("");
 
@@ -272,13 +279,13 @@ export default function TeamChart({ times }: { times: TimeStat[] }) {
 
   const chartTeams = useMemo(() => {
     const pinnedNames = new Set(pinned.map((t) => t.pais));
-    const slots = Math.max(0, 15 - Math.min(pinned.length, 15));
+    const slots = Math.max(0, 20 - Math.min(pinned.length, 20));
     const topRest = times
       .filter((t) => !pinnedNames.has(t.pais))
       .sort((a, b) => (Number(b[primaryKpi]) || 0) - (Number(a[primaryKpi]) || 0))
       .slice(0, slots);
     return [...pinned, ...topRest]
-      .slice(0, 15)
+      .slice(0, 20)
       .sort((a, b) => (Number(b[primaryKpi]) || 0) - (Number(a[primaryKpi]) || 0));
   }, [pinned, times, primaryKpi]);
 
@@ -354,7 +361,7 @@ export default function TeamChart({ times }: { times: TimeStat[] }) {
           </div>
 
           <div className="text-xs text-gray-500 pb-1.5">
-            <span className="text-gray-300 font-semibold">{chartTeams.length}</span>/15 no gráfico
+            <span className="text-gray-300 font-semibold">{chartTeams.length}</span>/20 no gráfico
             {pinned.length > 0 && (
               <span className="text-emerald-500 ml-1">
                 · {pinned.length} fixo{pinned.length > 1 ? "s" : ""}
@@ -393,6 +400,14 @@ export default function TeamChart({ times }: { times: TimeStat[] }) {
           />
         </div>
       </div>
+
+      {/* ── Rodapé ───────────────────────────────────────────────── */}
+      <p className="text-[10px] text-gray-600 mt-1 px-1">
+        Fonte: fifa.com
+        {lastUpdated && (
+          <> · Extração: {fmtDate(lastUpdated)}</>
+        )}
+      </p>
     </div>
   );
 }

@@ -311,7 +311,14 @@ function StatsTable({ players, kpis }: { players: Jogador[]; kpis: KpiKey[] }) {
 
 /* ── Main component ───────────────────────────────────────────────────── */
 
-export default function PlayerChart({ jogadores }: { jogadores: Jogador[] }) {
+function fmtDate(iso: string) {
+  return new Date(iso).toLocaleString("pt-BR", {
+    day: "2-digit", month: "2-digit", year: "numeric",
+    hour: "2-digit", minute: "2-digit",
+  });
+}
+
+export default function PlayerChart({ jogadores, lastUpdated }: { jogadores: Jogador[]; lastUpdated: string | null }) {
   const [kpis,       setKpis]       = useState<KpiKey[]>(["faltas_cometidas"]);
   const [position,   setPosition]   = useState<string>("all");
   const [teams,      setTeams]      = useState<string[]>([]);
@@ -516,6 +523,14 @@ export default function PlayerChart({ jogadores }: { jogadores: Jogador[] }) {
           </span>
         ))}
       </div>
+
+      {/* ── Rodapé ───────────────────────────────────────────────── */}
+      <p className="text-[10px] text-gray-600 mt-1">
+        Fonte: fifa.com
+        {lastUpdated && (
+          <> · Extração: {fmtDate(lastUpdated)}</>
+        )}
+      </p>
     </div>
   );
 }

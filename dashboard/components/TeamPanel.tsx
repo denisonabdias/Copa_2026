@@ -1,7 +1,7 @@
-import { getTimeStats } from "@/lib/supabase";
+import { getTimeStats, getLastUpdate } from "@/lib/supabase";
 import TeamChart from "./TeamChart";
 
 export default async function TeamPanel() {
-  const times = await getTimeStats();
-  return <TeamChart times={times} />;
+  const [times, lastUpdated] = await Promise.all([getTimeStats(), getLastUpdate()]);
+  return <TeamChart times={times} lastUpdated={lastUpdated} />;
 }
