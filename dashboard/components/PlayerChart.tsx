@@ -267,7 +267,7 @@ function RadarChart({ players, kpis, uMax }: RadarProps) {
 function StatsTable({ players, kpis }: { players: Jogador[]; kpis: KpiKey[] }) {
   if (players.length === 0) return null;
   return (
-    <div className="overflow-x-auto rounded-lg border border-gray-700/50">
+    <div className="overflow-auto rounded-lg border border-gray-700/50 h-full">
       <table className="w-full text-xs text-left">
         <thead>
           <tr className="bg-gray-800 text-gray-400 uppercase tracking-wide">
@@ -476,31 +476,36 @@ export default function PlayerChart({ jogadores }: { jogadores: Jogador[] }) {
         </div>
       </div>
 
-      {/* ── Radar ─────────────────────────────────────────────────── */}
-      <div className="bg-gray-900/50 rounded-xl border border-gray-700/50 px-4 pt-4 pb-3">
-        {/* Legend */}
-        <div className="flex flex-wrap items-center gap-x-5 gap-y-1 mb-3">
-          {kpis.map((k, ki) => (
-            <span key={String(k)} className="flex items-center gap-2 text-xs">
-              <svg width="20" height="8">
-                <line x1="0" y1="4" x2="20" y2="4"
-                  stroke={KPI_COLORS[ki]} strokeWidth="2" />
-              </svg>
-              <span style={{ color: KPI_COLORS[ki] }}>
-                {ki + 1}. {KPI_DEFS.find((d) => d.key === k)?.label}
+      {/* ── Radar + Tabela lado a lado ──────────────────────────── */}
+      <div className="flex gap-4 items-start">
+
+        {/* Radar (esquerda) */}
+        <div className="bg-gray-900/50 rounded-xl border border-gray-700/50 px-4 pt-4 pb-3 flex-1 min-w-0">
+          {/* Legend */}
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-1 mb-3">
+            {kpis.map((k, ki) => (
+              <span key={String(k)} className="flex items-center gap-2 text-xs">
+                <svg width="20" height="8">
+                  <line x1="0" y1="4" x2="20" y2="4"
+                    stroke={KPI_COLORS[ki]} strokeWidth="2" />
+                </svg>
+                <span style={{ color: KPI_COLORS[ki] }}>
+                  {ki + 1}. {KPI_DEFS.find((d) => d.key === k)?.label}
+                </span>
               </span>
+            ))}
+            <span className="text-[10px] text-gray-600 ml-auto">
+              % normalizado pelo máx do universo total
             </span>
-          ))}
-          <span className="text-[10px] text-gray-600 ml-auto">
-            % normalizado pelo máx do universo total
-          </span>
+          </div>
+          <RadarChart players={chartPlayers} kpis={kpis} uMax={uMax} />
         </div>
 
-        <RadarChart players={chartPlayers} kpis={kpis} uMax={uMax} />
+        {/* Tabela (direita) */}
+        <div className="w-80 shrink-0 self-stretch">
+          <StatsTable players={chartPlayers} kpis={kpis} />
+        </div>
       </div>
-
-      {/* ── Data table (KPIs agrupados em colunas por jogador) ────── */}
-      <StatsTable players={chartPlayers} kpis={kpis} />
 
       {/* ── Position legend ───────────────────────────────────────── */}
       <div className="flex gap-5 text-xs flex-wrap">
