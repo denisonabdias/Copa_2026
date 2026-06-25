@@ -270,13 +270,13 @@ export default function TeamChart({ times }: { times: TimeStat[] }) {
 
   const chartTeams = useMemo(() => {
     const pinnedNames = new Set(pinned.map((t) => t.pais));
-    const slots = Math.max(0, 10 - Math.min(pinned.length, 10));
+    const slots = Math.max(0, 15 - Math.min(pinned.length, 15));
     const topRest = times
       .filter((t) => !pinnedNames.has(t.pais))
       .sort((a, b) => (Number(b[primaryKpi]) || 0) - (Number(a[primaryKpi]) || 0))
       .slice(0, slots);
     return [...pinned, ...topRest]
-      .slice(0, 10)
+      .slice(0, 15)
       .sort((a, b) => (Number(b[primaryKpi]) || 0) - (Number(a[primaryKpi]) || 0));
   }, [pinned, times, primaryKpi]);
 
@@ -352,7 +352,7 @@ export default function TeamChart({ times }: { times: TimeStat[] }) {
           </div>
 
           <div className="text-xs text-gray-500 pb-1.5">
-            <span className="text-gray-300 font-semibold">{chartTeams.length}</span>/10 no gráfico
+            <span className="text-gray-300 font-semibold">{chartTeams.length}</span>/15 no gráfico
             {pinned.length > 0 && (
               <span className="text-emerald-500 ml-1">
                 · {pinned.length} fixo{pinned.length > 1 ? "s" : ""}
@@ -363,39 +363,30 @@ export default function TeamChart({ times }: { times: TimeStat[] }) {
         </div>
       </div>
 
-      {/* ── Chart + Tabela lado a lado ───────────────────────────── */}
-      <div className="flex gap-4 items-start">
-
-        {/* Gráfico de colunas agrupadas (esquerda) */}
-        <div className="bg-gray-900/50 rounded-xl border border-gray-700/50 px-4 pt-4 pb-3 flex-1 min-w-0">
-          {/* Legend */}
-          <div className="flex flex-wrap items-center gap-x-5 gap-y-1 mb-3">
-            {kpis.map((k, ki) => (
-              <span key={String(k)} className="flex items-center gap-2 text-xs">
-                <span className="w-4 h-3 rounded-sm shrink-0"
-                  style={{ backgroundColor: KPI_COLORS[ki] }} />
-                <span style={{ color: KPI_COLORS[ki] }}>
-                  {ki + 1}. {KPI_DEFS.find((d) => d.key === k)?.label}
-                </span>
+      {/* ── Gráfico de colunas agrupadas (largura total) ────────── */}
+      <div className="bg-gray-900/50 rounded-xl border border-gray-700/50 px-4 pt-4 pb-3">
+        {/* Legend */}
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-1 mb-3">
+          {kpis.map((k, ki) => (
+            <span key={String(k)} className="flex items-center gap-2 text-xs">
+              <span className="w-4 h-3 rounded-sm shrink-0"
+                style={{ backgroundColor: KPI_COLORS[ki] }} />
+              <span style={{ color: KPI_COLORS[ki] }}>
+                {ki + 1}. {KPI_DEFS.find((d) => d.key === k)?.label}
               </span>
-            ))}
-            <span className="text-[10px] text-gray-600 ml-auto">
-              % normalizado pelo máx do universo · --- média
             </span>
-          </div>
-
-          <GroupedBarChart
-            teams={chartTeams}
-            kpis={kpis}
-            uMax={uMax}
-            uAvg={uAvg}
-          />
+          ))}
+          <span className="text-[10px] text-gray-600 ml-auto">
+            % normalizado pelo máx do universo · --- média
+          </span>
         </div>
 
-        {/* Tabela (direita) */}
-        <div className="w-[420px] shrink-0 self-stretch">
-          <StatsTable teams={chartTeams} kpis={kpis} />
-        </div>
+        <GroupedBarChart
+          teams={chartTeams}
+          kpis={kpis}
+          uMax={uMax}
+          uAvg={uAvg}
+        />
       </div>
     </div>
   );
