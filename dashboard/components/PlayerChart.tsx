@@ -502,7 +502,7 @@ export default function PlayerChart({ jogadores }: { jogadores: Jogador[] }) {
         </div>
 
         {/* Tabela (direita) */}
-        <div className="w-80 shrink-0 self-stretch">
+        <div className="w-[420px] shrink-0 self-stretch">
           <StatsTable players={chartPlayers} kpis={kpis} />
         </div>
       </div>
