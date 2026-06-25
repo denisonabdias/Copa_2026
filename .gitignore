@@ -1,0 +1,28 @@
+# Dados locais (gerados pelo scraper — não versionados)
+Data_Site_Fifa/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+env/
+*.egg-info/
+
+# Credenciais e ambiente
+.env
+.env.*
+*.local
+
+# Screenshots de debug do Playwright
+*.png
+
+# IDEs
+.vscode/
+.idea/
+*.code-workspace
+
+# OS
+.DS_Store
+Thumbs.db

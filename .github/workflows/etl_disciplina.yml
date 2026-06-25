@@ -1,0 +1,55 @@
+name: ETL Copa 2026 — Disciplina
+
+on:
+  # Executa automaticamente a cada 1 hora
+  schedule:
+    - cron: "0 * * * *"
+
+  # Permite disparar manualmente pelo GitHub UI (Actions → Run workflow)
+  workflow_dispatch:
+
+jobs:
+  scrape-and-load:
+    name: Scraping FIFA + UPSERT Supabase
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    env:
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      SUPABASE_URL:         ${{ secrets.SUPABASE_URL }}
+      # SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}  # opcional
+
+    steps:
+      # ── 1. Checkout ────────────────────────────────────────────────────────
+      - name: Checkout do repositório
+        uses: actions/checkout@v4
+
+      # ── 2. Python ──────────────────────────────────────────────────────────
+      - name: Configurar Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      # ── 3. Dependências ────────────────────────────────────────────────────
+      - name: Instalar dependências Python
+        run: pip install -r requirements.txt
+
+      # ── 4. Playwright ──────────────────────────────────────────────────────
+      - name: Instalar browsers do Playwright
+        run: |
+          python -m playwright install chromium
+          python -m playwright install-deps chromium
+
+      # ── 5. Scraping + UPSERT ───────────────────────────────────────────────
+      - name: Executar scraper FIFA
+        run: python fifa_scraper.py
+
+      # ── 6. Upload do artefato (CSV para debug/auditoria) ───────────────────
+      - name: Salvar CSV como artefato
+        if: always()          # salva mesmo se o scraper falhar parcialmente
+        uses: actions/upload-artifact@v4
+        with:
+          name: disciplina-csv-${{ github.run_number }}
+          path: Data_Site_Fifa/Data_Estatisticas_Players/disciplina_jogadores.csv
+          retention-days: 7   # mantém por 7 dias para auditoria
