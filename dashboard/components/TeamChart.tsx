@@ -325,7 +325,7 @@ function BubbleChart({
                 x2={toSvgX(t)} y2={PAD_T + PLOT_H + 5}
             stroke="#1e3a8a" strokeOpacity="0.4" strokeWidth="1" />
           <text x={toSvgX(t)} y={PAD_T + PLOT_H + 15}
-            textAnchor="middle" fill="#2d4a7a" fontSize="9">
+            textAnchor="middle" fill="#5a7aaa" fontSize="9">
             {fmtTick(t, xKey)}
           </text>
         </g>
@@ -338,7 +338,7 @@ function BubbleChart({
                 x2={PAD_L}     y2={toSvgY(t)}
             stroke="#1e3a8a" strokeOpacity="0.4" strokeWidth="1" />
           <text x={PAD_L - 8} y={toSvgY(t) + 3.5}
-            textAnchor="end" fill="#2d4a7a" fontSize="9">
+            textAnchor="end" fill="#5a7aaa" fontSize="9">
             {fmtTick(t, yKey)}
           </text>
         </g>
@@ -346,16 +346,16 @@ function BubbleChart({
 
       {/* X axis label */}
       <text x={PAD_L + PLOT_W / 2} y={SVG_H - 10}
-        textAnchor="middle" fill="#0ea5e9" fontSize="10.5"
-        fontWeight="600" opacity="0.7">
+        textAnchor="middle" fill="#e2e8f0" fontSize="10.5"
+        fontWeight="600">
         ← {xLabel} →
       </text>
 
       {/* Y axis label (rotated) */}
       <text
         x={12} y={PAD_T + PLOT_H / 2}
-        textAnchor="middle" fill="#a855f7" fontSize="10.5"
-        fontWeight="600" opacity="0.7"
+        textAnchor="middle" fill="#e2e8f0" fontSize="10.5"
+        fontWeight="600"
         transform={`rotate(-90,12,${PAD_T + PLOT_H / 2})`}>
         ← {yLabel} →
       </text>
@@ -377,14 +377,14 @@ function BubbleChart({
       {cKey && (
         <g>
           <text x={PAD_L + PLOT_W - 4} y={SVG_H - 26}
-            textAnchor="end" fill="#2d4a7a" fontSize="8.5" opacity="0.7">
+            textAnchor="end" fill="#94a3b8" fontSize="8.5">
             {ALL_KPI_DEFS.find((d) => d.key === cKey)?.label}
           </text>
           <rect x={PAD_L + PLOT_W - 180} y={SVG_H - 18}
             width={180} height={8} rx={4}
             fill="url(#tc-temp)" opacity="0.85" />
           <text x={PAD_L + PLOT_W - 180} y={SVG_H - 5}
-            fill="#2d4a7a" fontSize="7.5" opacity="0.7">
+            fill="#5a7aaa" fontSize="7.5">
             {fmtTick(0, cKey)} (frio)
           </text>
           <text x={PAD_L + PLOT_W} y={SVG_H - 5}
@@ -534,24 +534,24 @@ export default function TeamChart({
                   fontSize: 9, fontWeight: 900,
                   background: assigned ? slot.glow : "#0a162855",
                   border: `1px solid ${assigned ? slot.color + "55" : "#1e3a8a28"}`,
-                  color: assigned ? slot.color : "#1e3a8a",
+                  color: assigned ? slot.color : "#3a5a8a",
                 }}>
                   {slot.badge}
                 </span>
-                <span style={{ fontSize: 11, color: assigned ? slot.color : "#2d4a7a" }}>
+                <span style={{ fontSize: 11, color: assigned ? slot.color : "#7090b8" }}>
                   {slot.label}
                 </span>
                 {def ? (
-                  <span style={{ fontSize: 10, color: "#1e3a8a88" }}>· {def.short}</span>
+                  <span style={{ fontSize: 10, color: "#4a6890" }}>· {def.short}</span>
                 ) : i >= 2 ? (
-                  <span style={{ fontSize: 10, color: "#1a2d4d" }}>· opcional</span>
+                  <span style={{ fontSize: 10, color: "#3a5a7a" }}>· opcional</span>
                 ) : null}
               </div>
             );
           })}
           <span style={{
             marginLeft: "auto", alignSelf: "center",
-            fontSize: 10, color: "#1e3060",
+            fontSize: 10, color: "#4a6890",
           }}>
             {kpis.length}/4 KPIs selecionados
           </span>
@@ -564,7 +564,7 @@ export default function TeamChart({
               <span style={{
                 width: 72, flexShrink: 0,
                 fontSize: 9, letterSpacing: "0.09em",
-                textTransform: "uppercase", color: "#1e3a8a",
+                textTransform: "uppercase", color: "#4a6890",
               }}>
                 {cat}
               </span>
@@ -596,7 +596,7 @@ export default function TeamChart({
                       }`,
                       color: isSelected
                         ? slot!.color
-                        : isDisabled ? "#1a2d4d" : "#3a5a8a",
+                        : isDisabled ? "#2a3a55" : "#94a3b8",
                     }}
                   >
                     {isSelected && (
@@ -621,7 +621,7 @@ export default function TeamChart({
           <div>
             <p style={{
               fontSize: 9, letterSpacing: "0.09em",
-              textTransform: "uppercase", color: "#1e3a8a", marginBottom: 7,
+              textTransform: "uppercase", color: "#4a6890", marginBottom: 7,
             }}>
               Seleção{" "}
               <span style={{ color: "#0ea5e9" }}>(destaque no gráfico)</span>
@@ -653,8 +653,8 @@ export default function TeamChart({
                 ))}
             </select>
           </div>
-          <div style={{ fontSize: 11, color: "#1e3060", paddingTop: 16 }}>
-            <span style={{ color: "#3a5a8a", fontWeight: 600 }}>{times.length}</span> seleções
+          <div style={{ fontSize: 11, color: "#4a6890", paddingTop: 16 }}>
+            <span style={{ color: "#7090c0", fontWeight: 600 }}>{times.length}</span> seleções
           </div>
         </div>
       </div>
@@ -677,7 +677,7 @@ export default function TeamChart({
       </div>
 
       {/* ── Footer ────────────────────────────────────────────────────── */}
-      <p style={{ fontSize: 10, color: "#1a2d4d", paddingLeft: 4 }}>
+      <p style={{ fontSize: 10, color: "#4a6890", paddingLeft: 4 }}>
         Fonte: fifa.com
         {lastUpdated && <> · Extração: {fmtDate(lastUpdated)}</>}
       </p>

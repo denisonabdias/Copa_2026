@@ -1,31 +1,124 @@
 "use client";
 
 import { useState, useMemo, useRef, useEffect } from "react";
-import type { Jogador } from "@/lib/supabase";
+import type { JogadorCompleto } from "@/lib/supabase";
 
 /* ── Types ───────────────────────────────────────────────────────────── */
 
 type KpiKey = keyof Pick<
-  Jogador,
-  | "faltas_cometidas"
-  | "faltas_sofridas"
-  | "cartoes_amarelos"
-  | "cartoes_vermelhos"
-  | "cartoes_vermelhos_indiretos"
-  | "impedimentos"
+  JogadorCompleto,
+  // Artilharia
+  | "gols" | "assistencias_artilharia" | "minutos_jogados"
+  // Ataque
+  | "finalizacoes_certas" | "finalizacoes" | "assistencias_ataque"
+  | "chutes_na_area" | "chutes_fora_area" | "cabeceos_a_gol"
+  | "ge" | "eficiencia_ge" | "escanteios"
+  // Defesa
+  | "perdas_bola_forcadas" | "pressoes_defensivas" | "pressoes_defensivas_diretas" | "gols_contra"
+  // Disciplina
+  | "faltas_cometidas" | "faltas_sofridas" | "cartoes_amarelos"
+  | "cartoes_vermelhos" | "cartoes_vermelhos_indiretos" | "impedimentos"
+  // Distribuicao
+  | "passes" | "precisao_passes_pct" | "cruzamentos"
+  | "tentativas_ruptura_linha" | "tentativas_mudanca_direcao"
+  // Fisico
+  | "velocidade_media" | "corridas_alta_velocidade" | "arrancadas" | "distancia_total"
+  // Goleiro
+  | "defesas_goleiro" | "acoes_goleiro_dentro_area" | "acoes_goleiro_fora_area"
+  // Movimentacao
+  | "pedidos_bola" | "pedidos_frente" | "pedidos_entre"
+  | "recepcoes_entre_linhas" | "recepcoes_sob_pressao" | "participacoes"
 >;
 
-/* ── Constants ───────────────────────────────────────────────────────── */
+type KpiDef = { key: KpiKey; label: string; short: string };
+type KpiCategory = { cat: string; kpis: KpiDef[] };
 
-const KPI_DEFS: { key: KpiKey; label: string; short: string }[] = [
-  { key: "faltas_cometidas",            label: "Faltas Cometidas",    short: "F.Com"   },
-  { key: "faltas_sofridas",             label: "Faltas Sofridas",     short: "F.Sof"   },
-  { key: "cartoes_amarelos",            label: "Cartões Amarelos",    short: "C.Amar"  },
-  { key: "cartoes_vermelhos",           label: "Cartões Vermelhos",   short: "C.Verm"  },
-  { key: "cartoes_vermelhos_indiretos", label: "V. Vermelhos Ind.",   short: "C.V.Ind" },
-  { key: "impedimentos",                label: "Impedimentos",        short: "Imped"   },
+/* ── KPI Categories ──────────────────────────────────────────────────── */
+
+const KPI_CATEGORIES: KpiCategory[] = [
+  {
+    cat: "Artilharia",
+    kpis: [
+      { key: "gols",                   label: "Gols",          short: "Gols"   },
+      { key: "assistencias_artilharia",label: "Assistências",  short: "Assist" },
+      { key: "minutos_jogados",        label: "Min. Jogados",  short: "Min"    },
+    ],
+  },
+  {
+    cat: "Ataque",
+    kpis: [
+      { key: "finalizacoes_certas",    label: "Fin. Certas",         short: "Fin.C"  },
+      { key: "finalizacoes",           label: "Finalizações",        short: "Fin"    },
+      { key: "assistencias_ataque",    label: "Assist. (Ataque)",    short: "Ast.A"  },
+      { key: "chutes_na_area",         label: "Chutes na Área",      short: "Ch.Int" },
+      { key: "chutes_fora_area",       label: "Chutes Fora Área",    short: "Ch.Ext" },
+      { key: "cabeceos_a_gol",         label: "Cabeceios a Gol",     short: "Cab"    },
+      { key: "ge",                     label: "Gdes Esperanças (GE)","short": "GE"   },
+      { key: "eficiencia_ge",          label: "Eficiência GE",       short: "Ef.GE"  },
+      { key: "escanteios",             label: "Escanteios",          short: "Esc"    },
+    ],
+  },
+  {
+    cat: "Defesa",
+    kpis: [
+      { key: "perdas_bola_forcadas",       label: "Perdas de Bola",        short: "P.Bola" },
+      { key: "pressoes_defensivas",        label: "Pressões Defensivas",   short: "Press"  },
+      { key: "pressoes_defensivas_diretas",label: "Pressões Diretas",      short: "P.Dir"  },
+      { key: "gols_contra",                label: "Gols Contra",           short: "G.C"    },
+    ],
+  },
+  {
+    cat: "Disciplina",
+    kpis: [
+      { key: "faltas_cometidas",            label: "Faltas Cometidas",  short: "F.Com"   },
+      { key: "faltas_sofridas",             label: "Faltas Sofridas",   short: "F.Sof"   },
+      { key: "cartoes_amarelos",            label: "Cartões Amarelos",  short: "C.Amar"  },
+      { key: "cartoes_vermelhos",           label: "Cartões Vermelhos", short: "C.Verm"  },
+      { key: "cartoes_vermelhos_indiretos", label: "V. Vermelhos Ind.", short: "C.V.Ind" },
+      { key: "impedimentos",                label: "Impedimentos",      short: "Imped"   },
+    ],
+  },
+  {
+    cat: "Distribuição",
+    kpis: [
+      { key: "passes",                     label: "Passes",               short: "Passes" },
+      { key: "precisao_passes_pct",        label: "Precisão Passes (%)",  short: "P.Pass" },
+      { key: "cruzamentos",                label: "Cruzamentos",          short: "Cruz"   },
+      { key: "tentativas_ruptura_linha",   label: "Ruptura Linha Def.",   short: "Rupt"   },
+      { key: "tentativas_mudanca_direcao", label: "Mudança de Direção",   short: "Mud.D"  },
+    ],
+  },
+  {
+    cat: "Físico",
+    kpis: [
+      { key: "corridas_alta_velocidade", label: "Corridas Alta Vel.",    short: "Corr.AV" },
+      { key: "arrancadas",               label: "Arrancadas",            short: "Arran"   },
+      { key: "velocidade_media",         label: "Veloc. Média (km/h)",   short: "Vel"     },
+      { key: "distancia_total",          label: "Distância Total (m)",   short: "Dist"    },
+    ],
+  },
+  {
+    cat: "Goleiro",
+    kpis: [
+      { key: "defesas_goleiro",           label: "Defesas",                short: "Def"   },
+      { key: "acoes_goleiro_dentro_area", label: "Ações Dentro Área",     short: "A.Int"  },
+      { key: "acoes_goleiro_fora_area",   label: "Ações Fora da Área",    short: "A.Ext"  },
+    ],
+  },
+  {
+    cat: "Movimentação",
+    kpis: [
+      { key: "pedidos_bola",          label: "Pedidos de Bola",          short: "Ped.B"  },
+      { key: "pedidos_frente",        label: "Pedidos na Frente",        short: "Ped.F"  },
+      { key: "pedidos_entre",         label: "Pedidos Entre Linhas",     short: "Ped.E"  },
+      { key: "recepcoes_entre_linhas",label: "Recep. Entre Linhas",      short: "Rec.E"  },
+      { key: "recepcoes_sob_pressao", label: "Recep. Sob Pressão",       short: "Rec.P"  },
+      { key: "participacoes",         label: "Participações",            short: "Part"   },
+    ],
+  },
 ];
 
+const ALL_KPI_DEFS: KpiDef[] = KPI_CATEGORIES.flatMap((c) => c.kpis);
 const KPI_COLORS = ["#10b981", "#f97316", "#3b82f6"] as const;
 
 const POS_COLOR: Record<string, string> = {
@@ -49,23 +142,25 @@ const LABEL_R = R + 44;
 function clip(s: string, n: number) {
   return s.length > n ? s.slice(0, n - 1) + "…" : s;
 }
-
 function lastName(name: string) {
   const parts = name.trim().split(/\s+/);
   return parts[parts.length - 1];
 }
-
 function rAngle(i: number, n: number) {
   return -Math.PI / 2 + (2 * Math.PI * i) / n;
 }
-
 function rPoint(i: number, n: number, norm: number) {
   const a = rAngle(i, n);
   return { x: CX + norm * R * Math.cos(a), y: CY + norm * R * Math.sin(a) };
 }
-
 function toPoints(pts: { x: number; y: number }[]) {
   return pts.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ");
+}
+function fmtDate(iso: string) {
+  return new Date(iso).toLocaleString("pt-BR", {
+    day: "2-digit", month: "2-digit", year: "numeric",
+    hour: "2-digit", minute: "2-digit",
+  });
 }
 
 /* ── TeamMultiSelect ─────────────────────────────────────────────────── */
@@ -98,39 +193,50 @@ function TeamMultiSelect({
     : `${selected.slice(0, 2).join(", ")} +${selected.length - 2}`;
 
   return (
-    <div ref={ref} className="relative">
-      <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-1.5">Seleção</p>
+    <div ref={ref} style={{ position: "relative" }}>
+      <p style={{ fontSize: 9, letterSpacing: "0.09em", textTransform: "uppercase", color: "#4a6890", marginBottom: 6 }}>Seleção</p>
       <button
         onClick={() => setOpen((o) => !o)}
-        className="flex items-center gap-2 bg-gray-700 border border-gray-600 text-gray-200 text-xs rounded-lg px-2.5 py-1.5 min-w-[190px] max-w-[280px] hover:bg-gray-600 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+        style={{
+          display: "flex", alignItems: "center", gap: 8,
+          background: "#050d2e", border: "1px solid #1e3a8a55",
+          borderRadius: 9, padding: "6px 12px", fontSize: 12,
+          color: selected.length > 0 ? "#94a3b8" : "#4a6890",
+          minWidth: 190, maxWidth: 280, cursor: "pointer", outline: "none",
+        }}
       >
-        <span className="flex-1 text-left truncate">{label}</span>
-        <svg className={`w-3 h-3 shrink-0 transition-transform ${open ? "rotate-180" : ""}`}
-          fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <span style={{ flex: 1, textAlign: "left", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{label}</span>
+        <svg style={{ width: 12, height: 12, flexShrink: 0, transition: "transform 0.15s", transform: open ? "rotate(180deg)" : "none" }}
+          fill="none" stroke="#3a5a8a" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
         </svg>
       </button>
 
       {open && (
-        <div className="absolute z-30 mt-1 w-56 bg-gray-800 border border-gray-600 rounded-lg shadow-xl overflow-hidden">
-          <div className="flex items-center justify-between px-3 py-2 border-b border-gray-700">
-            <span className="text-xs text-gray-400">
+        <div style={{
+          position: "absolute", zIndex: 30, marginTop: 4, width: 224,
+          background: "#050d2e", border: "1px solid #1e3a8a55",
+          borderRadius: 9, boxShadow: "0 8px 32px #000a", overflow: "hidden",
+        }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 12px", borderBottom: "1px solid #1e3a8a30" }}>
+            <span style={{ fontSize: 11, color: "#4a6890" }}>
               {selected.length === 0 ? "Todas" : `${selected.length} selecionadas`}
             </span>
             {selected.length > 0 && (
               <button onClick={() => { onChange([]); setOpen(false); }}
-                className="text-xs text-emerald-400 hover:text-emerald-300">
+                style={{ fontSize: 11, color: "#10b981", background: "none", border: "none", cursor: "pointer" }}>
                 Limpar
               </button>
             )}
           </div>
-          <div className="overflow-y-auto max-h-52 py-1">
+          <div style={{ overflowY: "auto", maxHeight: 208, padding: "4px 0" }}>
             {countries.map((c) => (
               <label key={c}
-                className="flex items-center gap-2 px-3 py-1.5 hover:bg-gray-700 cursor-pointer">
+                style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 12px", cursor: "pointer" }}
+                className="hover:bg-[#0a162880]">
                 <input type="checkbox" checked={selected.includes(c)} onChange={() => toggle(c)}
                   className="accent-emerald-500 w-3 h-3 shrink-0" />
-                <span className="text-xs text-gray-200">{c}</span>
+                <span style={{ fontSize: 11, color: "#94a3b8" }}>{c}</span>
               </label>
             ))}
           </div>
@@ -142,27 +248,27 @@ function TeamMultiSelect({
 
 /* ── Radar Chart ─────────────────────────────────────────────────────── */
 
-interface RadarProps {
-  players: Jogador[];
+function RadarChart({
+  players, kpis, uMax,
+}: {
+  players: JogadorCompleto[];
   kpis: KpiKey[];
   uMax: Record<KpiKey, number>;
-}
-
-function RadarChart({ players, kpis, uMax }: RadarProps) {
+}) {
   const N = players.length;
 
   if (N === 0) {
     return (
-      <div className="flex items-center justify-center h-56 text-gray-500 text-sm">
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 224, fontSize: 13, color: "#6b8fc4" }}>
         Nenhum jogador encontrado com os filtros selecionados.
       </div>
     );
   }
   if (N < 3) {
     return (
-      <div className="flex flex-col items-center justify-center h-48 text-gray-500 text-sm gap-1">
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: 192, gap: 4, fontSize: 13, color: "#6b8fc4" }}>
         <span>Adicione pelo menos 3 jogadores para exibir o radar.</span>
-        <span className="text-xs">({N} jogador{N > 1 ? "es" : ""} no momento)</span>
+        <span style={{ fontSize: 11, color: "#4a6890" }}>({N} jogador{N > 1 ? "es" : ""} no momento)</span>
       </div>
     );
   }
@@ -172,7 +278,6 @@ function RadarChart({ players, kpis, uMax }: RadarProps) {
   function ringPts(frac: number) {
     return toPoints(Array.from({ length: N }, (_, i) => rPoint(i, N, frac)));
   }
-
   function kpiPts(key: KpiKey) {
     const max = uMax[key] || 1;
     return toPoints(players.map((j, i) => rPoint(i, N, Math.min((j[key] || 0) / max, 1))));
@@ -180,36 +285,42 @@ function RadarChart({ players, kpis, uMax }: RadarProps) {
 
   return (
     <svg viewBox={`0 0 ${SVG_W} ${SVG_H}`} className="w-full" style={{ maxHeight: 540 }}>
+      <defs>
+        <radialGradient id="pc-bg" cx="50%" cy="50%" r="70%">
+          <stop offset="0%"   stopColor="#0d1f44" />
+          <stop offset="60%"  stopColor="#060f26" />
+          <stop offset="100%" stopColor="#02060f" />
+        </radialGradient>
+      </defs>
+      <rect width={SVG_W} height={SVG_H} fill="url(#pc-bg)" rx="12" />
 
-      {/* Axis lines */}
       {Array.from({ length: N }, (_, i) => {
         const outer = rPoint(i, N, 1);
         return (
           <line key={i} x1={CX} y1={CY}
             x2={outer.x.toFixed(1)} y2={outer.y.toFixed(1)}
-            stroke="#374151" strokeWidth="1" />
+            stroke="#1e3a8a" strokeWidth="1" strokeOpacity="0.3" />
         );
       })}
 
-      {/* Concentric grid polygons */}
       {RINGS.map((frac) => (
         <polygon key={frac} points={ringPts(frac)}
-          fill="none" stroke={frac === 1 ? "#374151" : "#1f2937"}
+          fill="none"
+          stroke={frac === 1 ? "#1e3a8a" : "#0d1f44"}
+          strokeOpacity={frac === 1 ? 0.5 : 0.6}
           strokeWidth={frac === 1 ? "1.5" : "1"} />
       ))}
 
-      {/* Scale % labels along first axis (top) */}
       {RINGS.slice(0, -1).map((frac) => {
         const p = rPoint(0, N, frac);
         return (
           <text key={frac} x={(p.x - 5).toFixed(1)} y={(p.y + 3).toFixed(1)}
-            textAnchor="end" fill="#4b5563" fontSize="9">
+            textAnchor="end" fill="#2d4a7a" fontSize="9">
             {Math.round(frac * 100)}%
           </text>
         );
       })}
 
-      {/* KPI polygons */}
       {kpis.map((key, ki) => {
         const color = KPI_COLORS[ki];
         const max   = uMax[key] || 1;
@@ -230,7 +341,6 @@ function RadarChart({ players, kpis, uMax }: RadarProps) {
         );
       })}
 
-      {/* Vertex labels */}
       {players.map((j, i) => {
         const a      = rAngle(i, N);
         const cosA   = Math.cos(a);
@@ -239,14 +349,11 @@ function RadarChart({ players, kpis, uMax }: RadarProps) {
         const ly     = CY + LABEL_R * sinA;
         const anchor = cosA > 0.15 ? "start" : cosA < -0.15 ? "end" : "middle";
         const posCol = POS_COLOR[j.posicao_campo] ?? "#6b7280";
-
-        // vertical nudge: push label up for top vertices, down for bottom
-        const vy = sinA < -0.4 ? -14 : sinA > 0.4 ? 6 : -5;
-
-        const dot = rPoint(i, N, 1);
+        const vy     = sinA < -0.4 ? -14 : sinA > 0.4 ? 6 : -5;
+        const dot    = rPoint(i, N, 1);
         return (
           <g key={j.id}>
-            <circle cx={dot.x.toFixed(1)} cy={dot.y.toFixed(1)} r="3" fill="#4b5563" />
+            <circle cx={dot.x.toFixed(1)} cy={dot.y.toFixed(1)} r="3" fill="#2d4a7a" />
             <text x={lx.toFixed(1)} y={(ly + vy).toFixed(1)}
               textAnchor={anchor} fill="#f3f4f6" fontSize="11" fontWeight="600">
               {clip(lastName(j.nome), 13)}
@@ -264,13 +371,13 @@ function RadarChart({ players, kpis, uMax }: RadarProps) {
 
 /* ── Stats Table ─────────────────────────────────────────────────────── */
 
-function StatsTable({ players, kpis }: { players: Jogador[]; kpis: KpiKey[] }) {
+function StatsTable({ players, kpis }: { players: JogadorCompleto[]; kpis: KpiKey[] }) {
   if (players.length === 0) return null;
   return (
-    <div className="overflow-auto rounded-lg border border-gray-700/50 h-full">
+    <div style={{ overflow: "auto", borderRadius: 12, border: "1px solid #1e3a8a28", height: "100%" }}>
       <table className="w-full text-xs text-left">
         <thead>
-          <tr className="bg-gray-800 text-gray-400 uppercase tracking-wide">
+          <tr style={{ background: "#060f26", color: "#4a6890", textTransform: "uppercase", letterSpacing: "0.06em", fontSize: 10 }}>
             <th className="px-3 py-2 w-7">#</th>
             <th className="px-3 py-2">Jogador</th>
             <th className="px-3 py-2">País</th>
@@ -278,17 +385,17 @@ function StatsTable({ players, kpis }: { players: Jogador[]; kpis: KpiKey[] }) {
             {kpis.map((k, ki) => (
               <th key={String(k)} className="px-3 py-2 text-right whitespace-nowrap"
                 style={{ color: KPI_COLORS[ki] }}>
-                {KPI_DEFS.find((d) => d.key === k)?.short}
+                {ALL_KPI_DEFS.find((d) => d.key === k)?.short}
               </th>
             ))}
           </tr>
         </thead>
-        <tbody className="divide-y divide-gray-800">
+        <tbody>
           {players.map((j, idx) => (
-            <tr key={j.id} className="hover:bg-gray-800/50 transition-colors">
-              <td className="px-3 py-2 text-gray-500">{idx + 1}</td>
+            <tr key={j.id} style={{ borderBottom: "1px solid #0a162880" }} className="hover:bg-[#060f2660] transition-colors">
+              <td className="px-3 py-2" style={{ color: "#2d4a7a" }}>{idx + 1}</td>
               <td className="px-3 py-2 font-medium text-white">{j.nome}</td>
-              <td className="px-3 py-2 text-gray-300">{j.pais}</td>
+              <td className="px-3 py-2" style={{ color: "#94a3b8" }}>{j.pais}</td>
               <td className="px-3 py-2">
                 <span className="px-1.5 py-0.5 rounded text-white text-xs"
                   style={{ backgroundColor: POS_COLOR[j.posicao_campo] ?? "#6b7280" }}>
@@ -311,15 +418,14 @@ function StatsTable({ players, kpis }: { players: Jogador[]; kpis: KpiKey[] }) {
 
 /* ── Main component ───────────────────────────────────────────────────── */
 
-function fmtDate(iso: string) {
-  return new Date(iso).toLocaleString("pt-BR", {
-    day: "2-digit", month: "2-digit", year: "numeric",
-    hour: "2-digit", minute: "2-digit",
-  });
-}
-
-export default function PlayerChart({ jogadores, lastUpdated }: { jogadores: Jogador[]; lastUpdated: string | null }) {
-  const [kpis,       setKpis]       = useState<KpiKey[]>(["faltas_cometidas"]);
+export default function PlayerChart({
+  jogadores,
+  lastUpdated,
+}: {
+  jogadores: JogadorCompleto[];
+  lastUpdated: string | null;
+}) {
+  const [kpis,       setKpis]       = useState<KpiKey[]>(["gols"]);
   const [position,   setPosition]   = useState<string>("all");
   const [teams,      setTeams]      = useState<string[]>([]);
   const [nameSearch, setNameSearch] = useState<string>("");
@@ -333,24 +439,20 @@ export default function PlayerChart({ jogadores, lastUpdated }: { jogadores: Jog
 
   const uMax = useMemo(() => {
     const r = {} as Record<KpiKey, number>;
-    for (const { key } of KPI_DEFS) {
-      r[key] = Math.max(...jogadores.map((j) => j[key] || 0), 1);
+    for (const { key } of ALL_KPI_DEFS) {
+      r[key] = Math.max(...jogadores.map((j) => Number(j[key]) || 0), 1);
     }
     return r;
   }, [jogadores]);
 
   const primaryKpi = kpis[0];
 
-  // Players pinned by name search (from entire dataset, by ranking)
   const pinned = useMemo(() => {
     if (!nameSearch.trim()) return [];
     const q = nameSearch.toLowerCase();
-    return jogadores
-      .filter((j) => j.nome.toLowerCase().includes(q))
-      .slice(0, 10);
+    return jogadores.filter((j) => j.nome.toLowerCase().includes(q)).slice(0, 10);
   }, [jogadores, nameSearch]);
 
-  // Players matching position + team filters
   const filtered = useMemo(() => {
     return jogadores.filter(
       (j) =>
@@ -359,20 +461,17 @@ export default function PlayerChart({ jogadores, lastUpdated }: { jogadores: Jog
     );
   }, [jogadores, position, teams]);
 
-  // Final chart players: pinned ∪ top-N-filtered, sorted by primary KPI desc, max 10
   const chartPlayers = useMemo(() => {
     const pinnedIds = new Set(pinned.map((j) => j.id));
     const slots     = Math.max(0, 10 - Math.min(pinned.length, 10));
     const topRest   = filtered
       .filter((j) => !pinnedIds.has(j.id))
-      .sort((a, b) => (b[primaryKpi] || 0) - (a[primaryKpi] || 0))
+      .sort((a, b) => (Number(b[primaryKpi]) || 0) - (Number(a[primaryKpi]) || 0))
       .slice(0, slots);
     return [...pinned, ...topRest]
       .slice(0, 10)
-      .sort((a, b) => (b[primaryKpi] || 0) - (a[primaryKpi] || 0));
+      .sort((a, b) => (Number(b[primaryKpi]) || 0) - (Number(a[primaryKpi]) || 0));
   }, [pinned, filtered, primaryKpi]);
-
-  /* ── KPI toggle (max 3, min 1) ──────────────────────────────────── */
 
   function toggleKpi(key: KpiKey) {
     if (kpis.includes(key)) {
@@ -388,65 +487,78 @@ export default function PlayerChart({ jogadores, lastUpdated }: { jogadores: Jog
     <div className="space-y-4">
 
       {/* ── Filter bar ────────────────────────────────────────────── */}
-      <div className="bg-gray-800/60 rounded-xl p-4 space-y-3 border border-gray-700/40">
+      <div style={{
+        background: "linear-gradient(145deg,#050d2e99 0%,#0a162888 60%,#050d2e99 100%)",
+        border: "1px solid #1e3a8a38",
+        backdropFilter: "blur(16px)",
+        borderRadius: 16,
+        padding: "18px 20px",
+      }} className="space-y-3">
 
-        {/* KPI pills */}
+        {/* KPI pills grouped by category */}
         <div>
-          <div className="flex items-center gap-2 mb-2">
-            <p className="text-[10px] uppercase tracking-widest text-gray-500">KPIs</p>
-            <span className="text-[10px] text-gray-600">
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+            <p style={{ fontSize: 9, letterSpacing: "0.09em", textTransform: "uppercase", color: "#4a6890" }}>KPIs</p>
+            <span style={{ fontSize: 10, color: "#3a5a7a" }}>
               ({kpis.length}/3 · ordenação pelo 1º)
             </span>
           </div>
-          <div className="flex flex-wrap gap-2">
-            {KPI_DEFS.map(({ key, label }) => {
-              const idx        = kpis.indexOf(key);
-              const isSelected = idx !== -1;
-              const isDisabled = !isSelected && kpis.length >= 3;
-              const color      = isSelected ? KPI_COLORS[idx] : undefined;
-              return (
-                <button
-                  key={String(key)}
-                  onClick={() => toggleKpi(key)}
-                  disabled={isDisabled}
-                  className={`px-3 py-1 rounded-full text-xs font-medium transition-colors border ${
-                    isSelected
-                      ? "text-white border-transparent"
-                      : isDisabled
-                      ? "bg-gray-800 text-gray-600 border-gray-700 cursor-not-allowed"
-                      : "bg-gray-700 text-gray-300 border-gray-600 hover:bg-gray-600"
-                  }`}
-                  style={isSelected ? { backgroundColor: color, borderColor: color } : {}}
-                >
-                  {isSelected && (
-                    <span className="mr-1 font-bold opacity-75">{idx + 1}·</span>
-                  )}
-                  {label}
-                </button>
-              );
-            })}
+          <div className="space-y-2">
+            {KPI_CATEGORIES.map(({ cat, kpis: catKpis }) => (
+              <div key={cat} className="flex flex-wrap items-center gap-x-1.5 gap-y-1.5">
+                <span style={{ fontSize: 9, letterSpacing: "0.09em", textTransform: "uppercase", color: "#4a6890", width: 68, flexShrink: 0 }}>
+                  {cat}
+                </span>
+                {catKpis.map(({ key, label }) => {
+                  const idx        = kpis.indexOf(key);
+                  const isSelected = idx !== -1;
+                  const isDisabled = !isSelected && kpis.length >= 3;
+                  const color      = isSelected ? KPI_COLORS[idx] : undefined;
+                  return (
+                    <button
+                      key={String(key)}
+                      onClick={() => toggleKpi(key)}
+                      disabled={isDisabled}
+                      className={`px-2.5 py-0.5 rounded-full text-xs font-medium transition-all border ${
+                        isSelected ? "text-white border-transparent" : isDisabled ? "cursor-not-allowed" : "hover:border-[#2a4a7a]"
+                      }`}
+                      style={isSelected
+                        ? { backgroundColor: color, borderColor: color }
+                        : isDisabled
+                        ? { background: "#0a162840", borderColor: "#1e3a8a20", color: "#2a3a55" }
+                        : { background: "#0a162865", borderColor: "#1e3a8a35", color: "#94a3b8" }
+                      }
+                    >
+                      {isSelected && (
+                        <span style={{ marginRight: 4, fontWeight: 900, opacity: 0.8 }}>{idx + 1}·</span>
+                      )}
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+            ))}
           </div>
         </div>
 
         {/* Filters row */}
-        <div className="flex flex-wrap gap-4 items-end">
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 16, alignItems: "flex-end", paddingTop: 12, borderTop: "1px solid #1e3a8a22" }}>
 
           {/* Position */}
           <div>
-            <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-1.5">Posição</p>
+            <p style={{ fontSize: 9, letterSpacing: "0.09em", textTransform: "uppercase", color: "#4a6890", marginBottom: 6 }}>Posição</p>
             <div className="flex gap-1">
               {(["all", "FW", "MF", "DF", "GK"] as const).map((p) => (
                 <button
                   key={p}
                   onClick={() => setPosition(p)}
-                  className={`px-2.5 py-1 rounded text-xs font-semibold transition-colors border ${
-                    position === p
-                      ? "border-transparent text-white"
-                      : "border-gray-600 bg-gray-700 text-gray-400 hover:bg-gray-600"
+                  className={`px-2.5 py-1 rounded text-xs font-semibold transition-all border ${
+                    position === p ? "border-transparent text-white" : "hover:border-[#2a4a7a]"
                   }`}
                   style={position === p
-                    ? { backgroundColor: p === "all" ? "#4b5563" : POS_COLOR[p] }
-                    : {}}
+                    ? { backgroundColor: p === "all" ? "#374151" : POS_COLOR[p] }
+                    : { background: "#0a162865", borderColor: "#1e3a8a35", color: "#94a3b8" }
+                  }
                 >
                   {p === "all" ? "Todas" : p}
                 </button>
@@ -459,23 +571,28 @@ export default function PlayerChart({ jogadores, lastUpdated }: { jogadores: Jog
 
           {/* Name search */}
           <div className="flex-1 min-w-[180px]">
-            <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-1.5">
-              Jogador <span className="text-emerald-600">(fixa no radar)</span>
+            <p style={{ fontSize: 9, letterSpacing: "0.09em", textTransform: "uppercase", color: "#4a6890", marginBottom: 6 }}>
+              Jogador <span style={{ color: "#10b981", textTransform: "none", letterSpacing: "normal" }}>(fixa no radar)</span>
             </p>
             <input
               type="text"
               placeholder="Buscar e fixar jogador…"
               value={nameSearch}
               onChange={(e) => setNameSearch(e.target.value)}
-              className="w-full bg-gray-700 border border-gray-600 text-gray-200 text-xs rounded-lg px-2.5 py-1.5 placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+              style={{
+                width: "100%", background: "#050d2e", border: "1px solid #1e3a8a55",
+                color: "#94a3b8", fontSize: 12, borderRadius: 9, padding: "6px 12px",
+                outline: "none",
+              }}
+              className="placeholder-[#3a5a7a]"
             />
           </div>
 
           {/* Count */}
-          <div className="text-xs text-gray-500 pb-1.5">
-            <span className="text-gray-300 font-semibold">{chartPlayers.length}</span>/10 no radar
+          <div style={{ fontSize: 12, color: "#4a6890", paddingBottom: 6 }}>
+            <span style={{ color: "#7090c0", fontWeight: 600 }}>{chartPlayers.length}</span>/10 no radar
             {pinned.length > 0 && (
-              <span className="text-emerald-500 ml-1">
+              <span style={{ color: "#10b981", marginLeft: 4 }}>
                 · {pinned.length} fixo{pinned.length > 1 ? "s" : ""}
               </span>
             )}
@@ -487,22 +604,26 @@ export default function PlayerChart({ jogadores, lastUpdated }: { jogadores: Jog
       <div className="flex gap-4 items-start">
 
         {/* Radar (esquerda) */}
-        <div className="bg-gray-900/50 rounded-xl border border-gray-700/50 px-4 pt-4 pb-3 flex-1 min-w-0">
-          {/* Legend */}
-          <div className="flex flex-wrap items-center gap-x-5 gap-y-1 mb-3">
+        <div style={{
+          background: "linear-gradient(160deg,#02060f 0%,#060f26 45%,#030812 100%)",
+          border: "1px solid #1e3a8a28",
+          borderRadius: 16,
+          padding: "16px 16px 12px",
+        }} className="flex-1 min-w-0">
+          <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "4px 20px", marginBottom: 12 }}>
             {kpis.map((k, ki) => (
-              <span key={String(k)} className="flex items-center gap-2 text-xs">
+              <span key={String(k)} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12 }}>
                 <svg width="20" height="8">
                   <line x1="0" y1="4" x2="20" y2="4"
-                    stroke={KPI_COLORS[ki]} strokeWidth="2" />
+                    stroke={KPI_COLORS[ki]} strokeWidth="2" strokeOpacity="0.9" />
                 </svg>
-                <span style={{ color: KPI_COLORS[ki] }}>
-                  {ki + 1}. {KPI_DEFS.find((d) => d.key === k)?.label}
+                <span style={{ color: "#e2e8f0" }}>
+                  {ki + 1}. {ALL_KPI_DEFS.find((d) => d.key === k)?.label}
                 </span>
               </span>
             ))}
-            <span className="text-[10px] text-gray-600 ml-auto">
-              % normalizado pelo máx do universo total
+            <span style={{ fontSize: 10, color: "#3a5a7a", marginLeft: "auto" }}>
+              % norm. pelo máx total
             </span>
           </div>
           <RadarChart players={chartPlayers} kpis={kpis} uMax={uMax} />
@@ -515,21 +636,19 @@ export default function PlayerChart({ jogadores, lastUpdated }: { jogadores: Jog
       </div>
 
       {/* ── Position legend ───────────────────────────────────────── */}
-      <div className="flex gap-5 text-xs flex-wrap">
+      <div style={{ display: "flex", gap: 20, fontSize: 12, flexWrap: "wrap" }}>
         {Object.entries(POS_COLOR).map(([p, c]) => (
-          <span key={p} className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded-sm shrink-0" style={{ backgroundColor: c }} />
-            <span className="text-gray-400">{p} · {POS_LABEL[p]}</span>
+          <span key={p} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <span style={{ width: 12, height: 12, borderRadius: 3, flexShrink: 0, backgroundColor: c }} />
+            <span style={{ color: "#4a6890" }}>{p} · {POS_LABEL[p]}</span>
           </span>
         ))}
       </div>
 
       {/* ── Rodapé ───────────────────────────────────────────────── */}
-      <p className="text-[10px] text-gray-600 mt-1">
+      <p style={{ fontSize: 10, color: "#4a6890", marginTop: 4 }}>
         Fonte: fifa.com
-        {lastUpdated && (
-          <> · Extração: {fmtDate(lastUpdated)}</>
-        )}
+        {lastUpdated && <> · Extração: {fmtDate(lastUpdated)}</>}
       </p>
     </div>
   );
