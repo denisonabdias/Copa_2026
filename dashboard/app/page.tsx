@@ -1,17 +1,11 @@
 import { Suspense } from "react";
+import {
+  getJogadoresCompletos,
+  getTimeStatsCompletos,
+  getLastUpdate,
+} from "@/lib/supabase";
 import UpdateButton from "@/components/UpdateButton";
-import PlayerPanel from "@/components/PlayerPanel";
-import TeamPanel from "@/components/TeamPanel";
-import DuelPanel from "@/components/DuelPanel";
-
-// Tabs são controladas via searchParam (server-side, sem JS extra)
-type Props = { searchParams: Promise<{ tab?: string }> };
-
-const TABS = [
-  { id: "jogadores", label: "Jogadores" },
-  { id: "times",     label: "Times"     },
-  { id: "duelo",     label: "Duelo"     },
-];
+import TabContainer from "@/components/TabContainer";
 
 function LoadingSkeleton() {
   return (
@@ -24,10 +18,23 @@ function LoadingSkeleton() {
   );
 }
 
-export default async function Home({ searchParams }: Props) {
-  const { tab = "jogadores" } = await searchParams;
-  const activeTab = TABS.find((t) => t.id === tab)?.id ?? "jogadores";
+/* Componente assíncrono separado para preservar o Suspense boundary */
+async function Paineis() {
+  const [jogadores, times, lastUpdated] = await Promise.all([
+    getJogadoresCompletos(),
+    getTimeStatsCompletos(),
+    getLastUpdate(),
+  ]);
+  return (
+    <TabContainer
+      jogadores={jogadores}
+      times={times}
+      lastUpdated={lastUpdated}
+    />
+  );
+}
 
+export default function Home() {
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
 
@@ -44,28 +51,9 @@ export default async function Home({ searchParams }: Props) {
         <UpdateButton />
       </div>
 
-      {/* ── Tabs ───────────────────────────────────────────────────── */}
-      <div className="flex gap-1 mb-6 border-b border-gray-800">
-        {TABS.map((t) => (
-          <a
-            key={t.id}
-            href={`?tab=${t.id}`}
-            className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${
-              activeTab === t.id
-                ? "bg-gray-800 text-white border-b-2 border-emerald-500"
-                : "text-gray-400 hover:text-white"
-            }`}
-          >
-            {t.label}
-          </a>
-        ))}
-      </div>
-
       {/* ── Painéis ────────────────────────────────────────────────── */}
       <Suspense fallback={<LoadingSkeleton />}>
-        {activeTab === "jogadores" && <PlayerPanel />}
-        {activeTab === "times"     && <TeamPanel />}
-        {activeTab === "duelo"     && <DuelPanel />}
+        <Paineis />
       </Suspense>
 
       {/* ── Rodapé ─────────────────────────────────────────────────── */}
