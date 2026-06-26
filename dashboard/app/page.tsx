@@ -4,7 +4,6 @@ import {
   getTimeStatsCompletos,
   getLastUpdate,
 } from "@/lib/supabase";
-import UpdateButton from "@/components/UpdateButton";
 import TabContainer from "@/components/TabContainer";
 
 function LoadingSkeleton() {
@@ -45,10 +44,9 @@ export default function Home() {
             Copa do Mundo 2026
           </h1>
           <p className="text-gray-400 text-sm mt-1">
-            Painel de Disciplina · Dados oficiais FIFA
+            Estatísticas oficiais FIFA · Análise interativa
           </p>
         </div>
-        <UpdateButton />
       </div>
 
       {/* ── Painéis ────────────────────────────────────────────────── */}

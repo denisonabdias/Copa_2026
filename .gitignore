@@ -1,6 +1,3 @@
-# Dados locais (gerados pelo scraper — não versionados)
-Data_Site_Fifa/
-
 # Python
 __pycache__/
 *.py[cod]
@@ -15,8 +12,17 @@ env/
 .env.*
 *.local
 
-# Screenshots de debug do Playwright
-*.png
+# Ferramentas internas (Claude Code)
+.agents/
+.claude/
+skills-lock.json
+
+# Notas de trabalho internas
+status_atual.md
+test_view.py
+
+# Debug screenshots do Playwright
+Data_Site_Fifa/**/*.png
 
 # IDEs
 .vscode/
