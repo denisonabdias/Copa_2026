@@ -423,7 +423,7 @@ export default function DuelChart({
                 x={Math.min(CX_L - bw1 - 5, CX_L - 5)}
                 y={textY}
                 textAnchor="end"
-                fill={win1 ? "#0ea5e9" : "#2d4a7a"}
+                fill={win1 ? "#0ea5e9" : "#1e4e80"}
                 fontSize={8.5}
                 fontWeight={win1 ? "700" : "400"}
               >
@@ -435,7 +435,7 @@ export default function DuelChart({
                 x={CX_R + bw2 + 5}
                 y={textY}
                 textAnchor="start"
-                fill={win2 ? "#f472b6" : "#2d4a7a"}
+                fill={win2 ? "#f472b6" : "#7a2d5a"}
                 fontSize={8.5}
                 fontWeight={win2 ? "700" : "400"}
               >
