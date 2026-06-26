@@ -418,7 +418,7 @@ export default function DuelChart({
                 />
               )}
 
-              {/* Value — team 1 (left of bar tip, or against CX_L if bar=0) */}
+              {/* Value — team 1 (left of bar tip) */}
               <text
                 x={Math.min(CX_L - bw1 - 5, CX_L - 5)}
                 y={textY}
@@ -430,35 +430,35 @@ export default function DuelChart({
                 {fmtVal(v1, key)}
               </text>
 
-              {/* Value — team 2 (right of bar tip) */}
+              {/* Value — team 2 (right of bar tip) — rosa */}
               <text
                 x={CX_R + bw2 + 5}
                 y={textY}
                 textAnchor="start"
-                fill={win2 ? "#a855f7" : "#2d4a7a"}
+                fill={win2 ? "#f472b6" : "#2d4a7a"}
                 fontSize={8.5}
                 fontWeight={win2 ? "700" : "400"}
               >
                 {fmtVal(v2, key)}
               </text>
 
-              {/* KPI label (center column) */}
+              {/* KPI label (center column) — mais claro */}
               <text
                 x={LBL_CX} y={textY}
                 textAnchor="middle"
-                fill="#263d6b" fontSize={9}
+                fill="#6b8fc4" fontSize={9}
               >
                 {label}
               </text>
 
-              {/* Winner dot: small marker at bar tip for leading team */}
+              {/* Winner dot */}
               {win1 && bw1 > 8 && (
                 <circle cx={CX_L - bw1} cy={rowY + barYOff + barH / 2}
                   r={2.5} fill="#0ea5e9" opacity="0.7" />
               )}
               {win2 && bw2 > 8 && (
                 <circle cx={CX_R + bw2} cy={rowY + barYOff + barH / 2}
-                  r={2.5} fill="#a855f7" opacity="0.7" />
+                  r={2.5} fill="#f472b6" opacity="0.7" />
               )}
             </g>
           );
