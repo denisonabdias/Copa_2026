@@ -132,13 +132,12 @@ const ALL_KPI_DEFS: KpiDef[] = KPI_CATEGORIES.flatMap((c) => c.kpis);
 
 function tempColor(t: number): string {
   const stops = [
-    [0.00,   5,  13,  46],
-    [0.16,  13,  36,  99],
-    [0.32,  14, 165, 233],
-    [0.50, 124,  58, 237],
-    [0.66, 190,  24,  93],
-    [0.82, 234,  88,  12],
-    [1.00, 251, 191,  36],
+    [0.00,   0,  30, 255],  // neon electric blue
+    [0.20,   0, 229, 255],  // neon cyan
+    [0.40, 191,   0, 255],  // neon purple
+    [0.60, 255,   0, 170],  // neon magenta
+    [0.80, 255,  85,   0],  // neon orange
+    [1.00, 255, 238,   0],  // neon yellow
   ];
   const n = Math.max(0, Math.min(1, t));
   let lo = stops[0], hi = stops[stops.length - 1];
@@ -250,8 +249,7 @@ function BubbleChart({
   const xTicks  = Array.from({ length: X_TICKS + 1 }, (_, i) => i / X_TICKS);
   const yTicks  = Array.from({ length: Y_TICKS + 1 }, (_, i) => i / Y_TICKS);
 
-  const hiQ = highlight.toLowerCase().trim();
-
+  /* exact match — dropdown sends the full pais name */
   const xLabel = ALL_KPI_DEFS.find((d) => d.key === xKey)?.label ?? "";
   const yLabel = ALL_KPI_DEFS.find((d) => d.key === yKey)?.label ?? "";
 
@@ -265,29 +263,19 @@ function BubbleChart({
           <stop offset="100%" stopColor="#02060f" />
         </radialGradient>
 
-        {/* Temperature gradient for legend bar */}
+        {/* Temperature gradient for legend bar — neon scale */}
         <linearGradient id="tc-temp" x1="0%" y1="0%" x2="100%" y2="0%">
-          <stop offset="0%"   stopColor="#050d2e" />
-          <stop offset="16%"  stopColor="#0d2463" />
-          <stop offset="32%"  stopColor="#0ea5e9" />
-          <stop offset="50%"  stopColor="#7c3aed" />
-          <stop offset="66%"  stopColor="#be185d" />
-          <stop offset="82%"  stopColor="#ea580c" />
-          <stop offset="100%" stopColor="#fbbf24" />
+          <stop offset="0%"   stopColor="#001eff" />
+          <stop offset="20%"  stopColor="#00e5ff" />
+          <stop offset="40%"  stopColor="#bf00ff" />
+          <stop offset="60%"  stopColor="#ff00aa" />
+          <stop offset="80%"  stopColor="#ff5500" />
+          <stop offset="100%" stopColor="#ffee00" />
         </linearGradient>
 
-        {/* Glow filter for highlighted bubble */}
-        <filter id="tc-glow" x="-60%" y="-60%" width="220%" height="220%">
-          <feGaussianBlur stdDeviation="6" result="blur" />
-          <feMerge>
-            <feMergeNode in="blur" />
-            <feMergeNode in="SourceGraphic" />
-          </feMerge>
-        </filter>
-
-        {/* Subtle ambient glow for all bubbles */}
-        <filter id="tc-soft" x="-30%" y="-30%" width="160%" height="160%">
-          <feGaussianBlur stdDeviation="2" result="blur" />
+        {/* Glow filter for highlighted bubble only */}
+        <filter id="tc-glow" x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur stdDeviation="3.5" result="blur" />
           <feMerge>
             <feMergeNode in="blur" />
             <feMergeNode in="SourceGraphic" />
@@ -406,11 +394,11 @@ function BubbleChart({
         </g>
       )}
 
-      {/* Bubbles — non-highlighted pass first (painter's algorithm) */}
+      {/* Bubbles — non-highlighted first (painter's algorithm) */}
       {([false, true] as boolean[]).flatMap((hiPass) =>
         teams
           .filter((t) => {
-            const isHi = hiQ !== "" && t.pais.toLowerCase().includes(hiQ);
+            const isHi = highlight !== "" && t.pais === highlight;
             return isHi === hiPass;
           })
           .map((t) => {
@@ -427,7 +415,7 @@ function BubbleChart({
               ? tempColor(norm(Number(t[cKey]) || 0, cKey))
               : "#0ea5e9";
 
-            const isHi = hiQ !== "" && t.pais.toLowerCase().includes(hiQ);
+            const isHi = highlight !== "" && t.pais === highlight;
             const code = countryCode(t.pais);
 
             /* label side: flip when near right/top edge */
@@ -436,18 +424,20 @@ function BubbleChart({
             const la = nx > 0.84 ? "end" : "start";
 
             return (
-              <g key={t.pais} filter={isHi ? "url(#tc-glow)" : "url(#tc-soft)"}>
-                {/* Halo glow ring */}
-                <circle cx={cx} cy={cy} r={r + 8}
-                  fill={col} opacity={isHi ? 0.18 : 0.05} />
+              <g key={t.pais} filter={isHi ? "url(#tc-glow)" : undefined}>
+                {/* Halo ring — apenas no destacado */}
+                {isHi && (
+                  <circle cx={cx} cy={cy} r={r + 7}
+                    fill={col} opacity={0.12} />
+                )}
 
                 {/* Main bubble */}
                 <circle cx={cx} cy={cy} r={r}
                   fill={col}
-                  fillOpacity={isHi ? 0.88 : 0.52}
+                  fillOpacity={isHi ? 0.88 : 0.68}
                   stroke={col}
-                  strokeWidth={isHi ? 1.5 : 0.6}
-                  strokeOpacity={isHi ? 0.9 : 0.45} />
+                  strokeWidth={isHi ? 1.5 : 0.5}
+                  strokeOpacity={isHi ? 0.85 : 0.35} />
 
                 {/* Country code inside bubble */}
                 {r >= 9 && (
@@ -456,7 +446,7 @@ function BubbleChart({
                     fill={isHi ? "#fff" : "#e2e8f0"}
                     fontSize={r >= 16 ? 9 : 7}
                     fontWeight={isHi ? "800" : "700"}
-                    opacity={isHi ? 1 : 0.9}>
+                    opacity={isHi ? 1 : 0.85}>
                     {code}
                   </text>
                 )}
@@ -622,11 +612,11 @@ export default function TeamChart({
           ))}
         </div>
 
-        {/* Search / highlight */}
+        {/* Dropdown / highlight */}
         <div style={{
           marginTop: 16, paddingTop: 16,
           borderTop: "1px solid #1e3a8a22",
-          display: "flex", alignItems: "center", gap: 12,
+          display: "flex", alignItems: "center", gap: 16,
         }}>
           <div>
             <p style={{
@@ -636,22 +626,32 @@ export default function TeamChart({
               Seleção{" "}
               <span style={{ color: "#0ea5e9" }}>(destaque no gráfico)</span>
             </p>
-            <input
-              type="text"
-              placeholder="Buscar e destacar seleção…"
+            <select
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               style={{
-                background: "#050d2e85",
-                border: "1px solid #1e3a8a45",
+                background: "#050d2e",
+                border: "1px solid #1e3a8a55",
                 borderRadius: 9,
-                padding: "6px 13px",
+                padding: "6px 32px 6px 13px",
                 fontSize: 12,
-                color: "#94a3b8",
+                color: search ? "#94a3b8" : "#3a5a8a",
                 outline: "none",
-                width: 260,
+                width: 240,
+                cursor: "pointer",
+                appearance: "none",
+                backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%231e3a8a'/%3E%3C/svg%3E")`,
+                backgroundRepeat: "no-repeat",
+                backgroundPosition: "right 12px center",
               }}
-            />
+            >
+              <option value="">— Todas as seleções —</option>
+              {[...times]
+                .sort((a, b) => a.pais.localeCompare(b.pais, "pt-BR"))
+                .map((t) => (
+                  <option key={t.pais} value={t.pais}>{t.pais}</option>
+                ))}
+            </select>
           </div>
           <div style={{ fontSize: 11, color: "#1e3060", paddingTop: 16 }}>
             <span style={{ color: "#3a5a8a", fontWeight: 600 }}>{times.length}</span> seleções
