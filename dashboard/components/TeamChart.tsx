@@ -1,412 +1,685 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import type { TimeStat } from "@/lib/supabase";
+import type { TimeStatCompleto } from "@/lib/supabase";
 
-/* ── Types ───────────────────────────────────────────────────────────── */
+/* ────────────────────────────────────────────────────────────────────────
+   Types
+   ──────────────────────────────────────────────────────────────────────── */
 
 type KpiKey = keyof Pick<
-  TimeStat,
-  | "total_faltas_cometidas"
-  | "total_faltas_sofridas"
-  | "total_cartoes_amarelos"
-  | "total_cartoes_vermelhos"
-  | "total_cartoes_vermelhos_indiretos"
-  | "total_impedimentos"
-  | "media_faltas_cometidas"
-  | "media_cartoes_amarelos"
+  TimeStatCompleto,
+  | "total_faltas_cometidas" | "total_faltas_sofridas"
+  | "total_cartoes_amarelos" | "total_cartoes_vermelhos"
+  | "total_cartoes_vermelhos_indiretos" | "total_impedimentos"
+  | "media_faltas_cometidas" | "media_cartoes_amarelos"
+  | "total_gols" | "total_assistencias_artilharia"
+  | "total_finalizacoes_certas" | "total_finalizacoes"
+  | "total_assistencias_ataque" | "total_chutes_na_area"
+  | "total_chutes_fora_area" | "total_cabeceos_a_gol"
+  | "media_ge" | "total_escanteios"
+  | "total_perdas_bola_forcadas" | "total_pressoes_defensivas"
+  | "total_pressoes_defensivas_diretas" | "total_gols_contra"
+  | "total_passes" | "media_precisao_passes_pct"
+  | "total_cruzamentos" | "total_tentativas_ruptura_linha"
+  | "total_tentativas_mudanca_direcao"
+  | "media_velocidade" | "total_corridas_alta_velocidade"
+  | "total_arrancadas" | "media_distancia_total"
+  | "total_defesas_goleiro" | "total_acoes_goleiro_dentro_area"
+  | "total_acoes_goleiro_fora_area"
+  | "total_pedidos_bola" | "total_pedidos_frente"
+  | "total_pedidos_entre" | "total_recepcoes_entre_linhas"
+  | "total_recepcoes_sob_pressao" | "total_participacoes"
 >;
 
-/* ── Constants ───────────────────────────────────────────────────────── */
+type KpiDef      = { key: KpiKey; label: string; short: string };
+type KpiCategory = { cat: string; kpis: KpiDef[] };
 
-const KPI_DEFS: { key: KpiKey; label: string; short: string }[] = [
-  { key: "total_faltas_cometidas",            label: "Total Faltas Cometidas",   short: "T.F.Com"   },
-  { key: "total_faltas_sofridas",             label: "Total Faltas Sofridas",    short: "T.F.Sof"   },
-  { key: "total_cartoes_amarelos",            label: "Total Cartões Amarelos",   short: "T.C.Amar"  },
-  { key: "total_cartoes_vermelhos",           label: "Total Cartões Vermelhos",  short: "T.C.Verm"  },
-  { key: "total_cartoes_vermelhos_indiretos", label: "Total V. Vermelhos Ind.",  short: "T.C.V.Ind" },
-  { key: "total_impedimentos",                label: "Total Impedimentos",       short: "T.Imped"   },
-  { key: "media_faltas_cometidas",            label: "Média Faltas Cometidas",   short: "M.F.Com"   },
-  { key: "media_cartoes_amarelos",            label: "Média Cartões Amarelos",   short: "M.C.Amar"  },
+/* ────────────────────────────────────────────────────────────────────────
+   KPI Catalogue
+   ──────────────────────────────────────────────────────────────────────── */
+
+const KPI_CATEGORIES: KpiCategory[] = [
+  {
+    cat: "Artilharia",
+    kpis: [
+      { key: "total_gols",                   label: "Gols (Total)",         short: "Gols"   },
+      { key: "total_assistencias_artilharia", label: "Assistências (Total)", short: "Assist" },
+    ],
+  },
+  {
+    cat: "Ataque",
+    kpis: [
+      { key: "total_finalizacoes_certas",  label: "Fin. Certas (T.)",    short: "Fin.C"  },
+      { key: "total_finalizacoes",         label: "Finalizações (T.)",   short: "Fin"    },
+      { key: "total_assistencias_ataque",  label: "Assist. Ataque (T.)", short: "Ast.A"  },
+      { key: "total_chutes_na_area",       label: "Chutes Área (T.)",    short: "Ch.Int" },
+      { key: "total_chutes_fora_area",     label: "Chutes Fora Área (T.)",short: "Ch.Ext"},
+      { key: "total_cabeceos_a_gol",       label: "Cabeceios (T.)",      short: "Cab"    },
+      { key: "media_ge",                   label: "GE (Média)",          short: "GE"     },
+      { key: "total_escanteios",           label: "Escanteios (T.)",     short: "Esc"    },
+    ],
+  },
+  {
+    cat: "Defesa",
+    kpis: [
+      { key: "total_perdas_bola_forcadas",        label: "Perdas de Bola (T.)", short: "P.Bola" },
+      { key: "total_pressoes_defensivas",         label: "Pressões Def. (T.)",  short: "Press"  },
+      { key: "total_pressoes_defensivas_diretas", label: "Pressões Dir. (T.)",  short: "P.Dir"  },
+      { key: "total_gols_contra",                 label: "Gols Contra (T.)",    short: "G.C"    },
+    ],
+  },
+  {
+    cat: "Disciplina",
+    kpis: [
+      { key: "total_faltas_cometidas",            label: "Faltas Comet. (T.)",   short: "F.Com"  },
+      { key: "total_faltas_sofridas",             label: "Faltas Sofr. (T.)",    short: "F.Sof"  },
+      { key: "total_cartoes_amarelos",            label: "C. Amarelos (T.)",     short: "C.Amar" },
+      { key: "total_cartoes_vermelhos",           label: "C. Vermelhos (T.)",    short: "C.Verm" },
+      { key: "total_cartoes_vermelhos_indiretos", label: "V.Verm. Ind. (T.)",    short: "C.V.I"  },
+      { key: "total_impedimentos",                label: "Impedimentos (T.)",    short: "Imped"  },
+      { key: "media_faltas_cometidas",            label: "Faltas Comet. (Méd.)", short: "M.F.C"  },
+      { key: "media_cartoes_amarelos",            label: "C. Amarelos (Méd.)",   short: "M.C.A"  },
+    ],
+  },
+  {
+    cat: "Distribuição",
+    kpis: [
+      { key: "total_passes",                     label: "Passes (T.)",           short: "Passes" },
+      { key: "media_precisao_passes_pct",        label: "Precisão Passes (Méd.)",short: "P.Pass" },
+      { key: "total_cruzamentos",                label: "Cruzamentos (T.)",      short: "Cruz"   },
+      { key: "total_tentativas_ruptura_linha",   label: "Rupt. Linha (T.)",      short: "Rupt"   },
+      { key: "total_tentativas_mudanca_direcao", label: "Mud. Direção (T.)",     short: "Mud.D"  },
+    ],
+  },
+  {
+    cat: "Físico",
+    kpis: [
+      { key: "total_corridas_alta_velocidade", label: "Corridas AV (T.)",    short: "Corr.AV" },
+      { key: "total_arrancadas",               label: "Arrancadas (T.)",     short: "Arran"   },
+      { key: "media_velocidade",               label: "Vel. Média (km/h)",   short: "Vel"     },
+      { key: "media_distancia_total",          label: "Distância (Méd. m)",  short: "Dist"    },
+    ],
+  },
+  {
+    cat: "Goleiro",
+    kpis: [
+      { key: "total_defesas_goleiro",           label: "Defesas (T.)",         short: "Def"   },
+      { key: "total_acoes_goleiro_dentro_area", label: "Ações Dentro Área (T.)",short: "A.Int" },
+      { key: "total_acoes_goleiro_fora_area",   label: "Ações Fora Área (T.)", short: "A.Ext" },
+    ],
+  },
+  {
+    cat: "Movimentação",
+    kpis: [
+      { key: "total_pedidos_bola",           label: "Pedidos Bola (T.)",    short: "Ped.B" },
+      { key: "total_pedidos_frente",         label: "Pedidos Frente (T.)",  short: "Ped.F" },
+      { key: "total_pedidos_entre",          label: "Pedidos Entre (T.)",   short: "Ped.E" },
+      { key: "total_recepcoes_entre_linhas", label: "Recep. Linhas (T.)",   short: "Rec.E" },
+      { key: "total_recepcoes_sob_pressao",  label: "Recep. Pressão (T.)",  short: "Rec.P" },
+      { key: "total_participacoes",          label: "Participações (T.)",   short: "Part"  },
+    ],
+  },
 ];
 
-const KPI_COLORS = ["#10b981", "#f97316", "#3b82f6"] as const;
+const ALL_KPI_DEFS: KpiDef[] = KPI_CATEGORIES.flatMap((c) => c.kpis);
 
-/* ── SVG geometry ────────────────────────────────────────────────────── */
+/* ────────────────────────────────────────────────────────────────────────
+   Cave Temperature Color Scale
+   Inspired by the cave image: deep navy → electric blue → cyan →
+   amethyst purple → hot magenta → torch orange → stalactite amber
+   ──────────────────────────────────────────────────────────────────────── */
 
-const SVG_W   = 820;
-const SVG_H   = 400;
-const PAD_L   = 2;   // labels do eixo Y ficam dentro do gráfico
-const PAD_R   = 48;  // espaço para labels de avg à direita
-const PAD_T   = 28;
-const PAD_B   = 72;
-const CHART_W = SVG_W - PAD_L - PAD_R;
-const CHART_H = SVG_H - PAD_T - PAD_B;
-
-/* ── Helpers ─────────────────────────────────────────────────────────── */
-
-function clip(s: string, n: number) {
-  return s.length > n ? s.slice(0, n - 1) + "…" : s;
+function tempColor(t: number): string {
+  const stops = [
+    [0.00,   5,  13,  46],
+    [0.16,  13,  36,  99],
+    [0.32,  14, 165, 233],
+    [0.50, 124,  58, 237],
+    [0.66, 190,  24,  93],
+    [0.82, 234,  88,  12],
+    [1.00, 251, 191,  36],
+  ];
+  const n = Math.max(0, Math.min(1, t));
+  let lo = stops[0], hi = stops[stops.length - 1];
+  for (let i = 0; i < stops.length - 1; i++) {
+    if (n >= stops[i][0] && n <= stops[i + 1][0]) { lo = stops[i]; hi = stops[i + 1]; break; }
+  }
+  const f = hi[0] - lo[0] > 0 ? (n - lo[0]) / (hi[0] - lo[0]) : 0;
+  return `rgb(${Math.round(lo[1] + f * (hi[1] - lo[1]))},${Math.round(lo[2] + f * (hi[2] - lo[2]))},${Math.round(lo[3] + f * (hi[3] - lo[3]))})`;
 }
 
-function fmtVal(v: number, key: KpiKey) {
-  return key.startsWith("media_") ? v.toFixed(1) : String(Math.round(v));
+/* ────────────────────────────────────────────────────────────────────────
+   Slot metadata (4 roles)
+   ──────────────────────────────────────────────────────────────────────── */
+
+const SLOTS = [
+  { label: "Eixo X",      badge: "X",  color: "#0ea5e9", glow: "#0ea5e930" },
+  { label: "Eixo Y",      badge: "Y",  color: "#a855f7", glow: "#a855f730" },
+  { label: "Tamanho",     badge: "⊙",  color: "#10b981", glow: "#10b98130" },
+  { label: "Temperatura", badge: "T°", color: "#f97316", glow: "#f9731630" },
+] as const;
+
+/* ────────────────────────────────────────────────────────────────────────
+   SVG layout
+   ──────────────────────────────────────────────────────────────────────── */
+
+const SVG_W  = 880;
+const SVG_H  = 520;
+const PAD_L  = 74;
+const PAD_R  = 24;
+const PAD_T  = 18;
+const PAD_B  = 62;
+const PLOT_W = SVG_W - PAD_L - PAD_R;
+const PLOT_H = SVG_H - PAD_T - PAD_B;
+const MIN_R  = 7;
+const MAX_R  = 28;
+const DEF_R  = 13;
+
+/* ────────────────────────────────────────────────────────────────────────
+   Helpers
+   ──────────────────────────────────────────────────────────────────────── */
+
+function fmtVal(v: number, key: KpiKey): string {
+  if (v >= 10000) return `${(v / 1000).toFixed(0)}k`;
+  if (v >= 1000)  return `${(v / 1000).toFixed(1)}k`;
+  return String(key).startsWith("media_") ? v.toFixed(1) : Math.round(v).toString();
 }
 
-function fmtDate(iso: string) {
+function fmtDate(iso: string): string {
   return new Date(iso).toLocaleString("pt-BR", {
     day: "2-digit", month: "2-digit", year: "numeric",
     hour: "2-digit", minute: "2-digit",
   });
 }
 
-/* ── Grouped Bar Chart SVG ───────────────────────────────────────────── */
-
-interface BarChartProps {
-  teams: TimeStat[];
-  kpis: KpiKey[];
-  uMax: Record<KpiKey, number>;
-  uAvg: Record<KpiKey, number>;
+function countryCode(s: string): string {
+  return s.trim().slice(0, 3).toUpperCase();
 }
 
-function GroupedBarChart({ teams, kpis, uMax, uAvg }: BarChartProps) {
-  const N = teams.length;
-  const M = kpis.length;
+/* ────────────────────────────────────────────────────────────────────────
+   Bubble Chart SVG
+   ──────────────────────────────────────────────────────────────────────── */
 
-  if (N === 0) {
+function BubbleChart({
+  teams, kpis, uMin, uMax, highlight,
+}: {
+  teams:     TimeStatCompleto[];
+  kpis:      KpiKey[];
+  uMin:      Record<KpiKey, number>;
+  uMax:      Record<KpiKey, number>;
+  highlight: string;
+}) {
+  const [xKey, yKey, sKey, cKey] = kpis as [KpiKey, KpiKey | undefined, KpiKey | undefined, KpiKey | undefined];
+
+  /* ── empty state ── */
+  if (!xKey || !yKey) {
     return (
-      <div className="flex items-center justify-center h-56 text-gray-500 text-sm">
-        Nenhuma seleção encontrada.
+      <div className="flex flex-col items-center justify-center gap-3 py-28"
+        style={{ minHeight: 340 }}>
+        <svg width="56" height="56" viewBox="0 0 56 56" fill="none">
+          <circle cx="28" cy="28" r="26" stroke="#1e3a8a" strokeWidth="1" strokeOpacity="0.4" />
+          <circle cx="18" cy="30" r="7"  fill="#0ea5e9" opacity="0.25" />
+          <circle cx="34" cy="22" r="10" fill="#a855f7" opacity="0.20" />
+          <circle cx="36" cy="36" r="5"  fill="#10b981" opacity="0.18" />
+        </svg>
+        <p style={{ color: "#2d4a7a", fontSize: "13px" }}>
+          Selecione pelo menos 2 KPIs para exibir o gráfico
+        </p>
+        <p style={{ color: "#1a2d4d", fontSize: "11px" }}>
+          Slot 1 → Eixo X · Slot 2 → Eixo Y · Slot 3 → Tamanho · Slot 4 → Temperatura
+        </p>
       </div>
     );
   }
 
-  const TICKS  = 5;
-  const yTicks = Array.from({ length: TICKS + 1 }, (_, i) => Math.round((100 * i) / TICKS));
+  /* ── normalization (0→1 from uMin to uMax) ── */
+  const norm = (val: number, key: KpiKey) => {
+    const range = uMax[key] - uMin[key];
+    return range > 0 ? Math.min(Math.max((val - uMin[key]) / range, 0), 1) : 0.5;
+  };
 
-  const GROUP_W      = CHART_W / N;
-  const INNER_FILL   = 0.80;
-  const GROUP_INNER  = GROUP_W * INNER_FILL;
-  const GROUP_OFFSET = (GROUP_W - GROUP_INNER) / 2;
-  const BAR_W        = GROUP_INNER / M;
-  const BAR_GAP      = 1.5;
+  const toSvgX = (n: number) => PAD_L + n * PLOT_W;
+  const toSvgY = (n: number) => PAD_T + (1 - n) * PLOT_H;
 
-  const toY = (pct: number) => PAD_T + CHART_H - (pct / 100) * CHART_H;
-  const toH = (pct: number) => (pct / 100) * CHART_H;
+  const fmtTick = (n: number, key: KpiKey) =>
+    fmtVal(uMin[key] + n * (uMax[key] - uMin[key]), key);
 
-  // Font size for value label adapts to bar width
-  const valueFontSize = BAR_W > 30 ? 10 : BAR_W > 20 ? 9 : 8;
-  const nameFontSize  = N > 7 ? 8 : 9;
+  const X_TICKS = 6;
+  const Y_TICKS = 5;
+  const xTicks  = Array.from({ length: X_TICKS + 1 }, (_, i) => i / X_TICKS);
+  const yTicks  = Array.from({ length: Y_TICKS + 1 }, (_, i) => i / Y_TICKS);
+
+  const hiQ = highlight.toLowerCase().trim();
+
+  const xLabel = ALL_KPI_DEFS.find((d) => d.key === xKey)?.label ?? "";
+  const yLabel = ALL_KPI_DEFS.find((d) => d.key === yKey)?.label ?? "";
 
   return (
-    <svg viewBox={`0 0 ${SVG_W} ${SVG_H}`} className="w-full" style={{ maxHeight: 400 }}>
+    <svg viewBox={`0 0 ${SVG_W} ${SVG_H}`} className="w-full" style={{ maxHeight: 520 }}>
+      <defs>
+        {/* Atmospheric cave background */}
+        <radialGradient id="tc-bg" cx="42%" cy="38%" r="68%">
+          <stop offset="0%"   stopColor="#0d1f44" />
+          <stop offset="55%"  stopColor="#060f26" />
+          <stop offset="100%" stopColor="#02060f" />
+        </radialGradient>
 
-      {/* Grid lines + Y labels sobrepostos (inside chart) */}
-      {yTicks.map((tick) => (
-        <g key={tick}>
-          <line
-            x1={PAD_L} y1={toY(tick)} x2={PAD_L + CHART_W} y2={toY(tick)}
-            stroke={tick === 0 ? "#374151" : "#1f2937"} strokeWidth="1"
-          />
-          {tick > 0 && (
-            <text x={PAD_L + 4} y={toY(tick) - 3}
-              textAnchor="start" fill="#4b5563" fontSize="9">
-              {tick}%
-            </text>
-          )}
+        {/* Temperature gradient for legend bar */}
+        <linearGradient id="tc-temp" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%"   stopColor="#050d2e" />
+          <stop offset="16%"  stopColor="#0d2463" />
+          <stop offset="32%"  stopColor="#0ea5e9" />
+          <stop offset="50%"  stopColor="#7c3aed" />
+          <stop offset="66%"  stopColor="#be185d" />
+          <stop offset="82%"  stopColor="#ea580c" />
+          <stop offset="100%" stopColor="#fbbf24" />
+        </linearGradient>
+
+        {/* Glow filter for highlighted bubble */}
+        <filter id="tc-glow" x="-60%" y="-60%" width="220%" height="220%">
+          <feGaussianBlur stdDeviation="6" result="blur" />
+          <feMerge>
+            <feMergeNode in="blur" />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
+
+        {/* Subtle ambient glow for all bubbles */}
+        <filter id="tc-soft" x="-30%" y="-30%" width="160%" height="160%">
+          <feGaussianBlur stdDeviation="2" result="blur" />
+          <feMerge>
+            <feMergeNode in="blur" />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
+      </defs>
+
+      {/* Background */}
+      <rect width={SVG_W} height={SVG_H} fill="url(#tc-bg)" rx="12" />
+
+      {/* Ambient cave light bands (horizontal) */}
+      <rect x={PAD_L} y={PAD_T}
+        width={PLOT_W} height={PLOT_H * 0.33}
+        fill="#0ea5e9" fillOpacity="0.018" />
+      <rect x={PAD_L} y={PAD_T + PLOT_H * 0.33}
+        width={PLOT_W} height={PLOT_H * 0.34}
+        fill="#7c3aed" fillOpacity="0.014" />
+
+      {/* Grid lines */}
+      {xTicks.filter((t) => t > 0).map((t) => (
+        <line key={`xg${t}`}
+          x1={toSvgX(t)} y1={PAD_T}
+          x2={toSvgX(t)} y2={PAD_T + PLOT_H}
+          stroke="#1e3a8a" strokeOpacity="0.13"
+          strokeWidth="1" strokeDasharray="3 6" />
+      ))}
+      {yTicks.filter((t) => t > 0).map((t) => (
+        <line key={`yg${t}`}
+          x1={PAD_L} y1={toSvgY(t)}
+          x2={PAD_L + PLOT_W} y2={toSvgY(t)}
+          stroke="#1e3a8a" strokeOpacity="0.13"
+          strokeWidth="1" strokeDasharray="3 6" />
+      ))}
+
+      {/* Axis lines */}
+      <line x1={PAD_L} y1={PAD_T}
+            x2={PAD_L} y2={PAD_T + PLOT_H}
+        stroke="#1e3a8a" strokeWidth="1.5" strokeOpacity="0.45" />
+      <line x1={PAD_L} y1={PAD_T + PLOT_H}
+            x2={PAD_L + PLOT_W} y2={PAD_T + PLOT_H}
+        stroke="#1e3a8a" strokeWidth="1.5" strokeOpacity="0.45" />
+
+      {/* X axis ticks + labels */}
+      {xTicks.map((t) => (
+        <g key={`xt${t}`}>
+          <line x1={toSvgX(t)} y1={PAD_T + PLOT_H}
+                x2={toSvgX(t)} y2={PAD_T + PLOT_H + 5}
+            stroke="#1e3a8a" strokeOpacity="0.4" strokeWidth="1" />
+          <text x={toSvgX(t)} y={PAD_T + PLOT_H + 15}
+            textAnchor="middle" fill="#2d4a7a" fontSize="9">
+            {fmtTick(t, xKey)}
+          </text>
         </g>
       ))}
 
-      {/* Universe avg reference lines (one per KPI) */}
-      {kpis.map((key, ki) => {
-        const avgPct = uMax[key] > 0 ? (uAvg[key] / uMax[key]) * 100 : 0;
-        const y = toY(avgPct);
-        return (
-          <g key={String(key)}>
-            <line
-              x1={PAD_L} y1={y} x2={PAD_L + CHART_W} y2={y}
-              stroke={KPI_COLORS[ki]} strokeWidth="1.2"
-              strokeDasharray="7 3" opacity={0.55}
-            />
-            <text x={PAD_L + CHART_W + 5} y={y + 4}
-              fill={KPI_COLORS[ki]} fontSize="9" opacity={0.7}>
-              avg {ki + 1}
-            </text>
-          </g>
-        );
-      })}
+      {/* Y axis ticks + labels */}
+      {yTicks.map((t) => (
+        <g key={`yt${t}`}>
+          <line x1={PAD_L - 5} y1={toSvgY(t)}
+                x2={PAD_L}     y2={toSvgY(t)}
+            stroke="#1e3a8a" strokeOpacity="0.4" strokeWidth="1" />
+          <text x={PAD_L - 8} y={toSvgY(t) + 3.5}
+            textAnchor="end" fill="#2d4a7a" fontSize="9">
+            {fmtTick(t, yKey)}
+          </text>
+        </g>
+      ))}
 
-      {/* Grouped bars */}
-      {teams.map((t, i) => {
-        const groupX = PAD_L + i * GROUP_W + GROUP_OFFSET;
-        const cx     = PAD_L + i * GROUP_W + GROUP_W / 2;
+      {/* X axis label */}
+      <text x={PAD_L + PLOT_W / 2} y={SVG_H - 10}
+        textAnchor="middle" fill="#0ea5e9" fontSize="10.5"
+        fontWeight="600" opacity="0.7">
+        ← {xLabel} →
+      </text>
 
-        return (
-          <g key={t.pais}>
-            {kpis.map((key, ki) => {
-              const val    = Number(t[key]) || 0;
-              const pct    = uMax[key] > 0 ? Math.min((val / uMax[key]) * 100, 100) : 0;
-              const bx     = groupX + ki * BAR_W + BAR_GAP / 2;
-              const bw     = BAR_W - BAR_GAP;
-              const bh     = toH(pct);
-              const by     = toY(pct);
-              const color  = KPI_COLORS[ki];
+      {/* Y axis label (rotated) */}
+      <text
+        x={12} y={PAD_T + PLOT_H / 2}
+        textAnchor="middle" fill="#a855f7" fontSize="10.5"
+        fontWeight="600" opacity="0.7"
+        transform={`rotate(-90,12,${PAD_T + PLOT_H / 2})`}>
+        ← {yLabel} →
+      </text>
 
-              return (
-                <g key={String(key)}>
-                  {/* Bar */}
-                  <rect x={bx.toFixed(1)} y={by.toFixed(1)}
-                    width={Math.max(bw, 0).toFixed(1)} height={bh.toFixed(1)}
-                    fill={color} opacity={0.82} rx={2} />
-                  {/* Value label above bar */}
-                  {bh > 10 && (
-                    <text
-                      x={(bx + bw / 2).toFixed(1)}
-                      y={(by - 3).toFixed(1)}
-                      textAnchor="middle"
-                      fill={color}
-                      fontSize={valueFontSize}
-                      fontWeight="600"
-                    >
-                      {fmtVal(val, key)}
-                    </text>
-                  )}
-                </g>
-              );
-            })}
+      {/* Size legend */}
+      {sKey && (
+        <g opacity="0.7">
+          <circle cx={PAD_L + 10} cy={SVG_H - 14} r={MIN_R}
+            fill="none" stroke="#10b981" strokeWidth="1" strokeDasharray="2 3" strokeOpacity="0.5" />
+          <circle cx={PAD_L + 28} cy={SVG_H - 10} r={MAX_R * 0.6}
+            fill="none" stroke="#10b981" strokeWidth="1" strokeDasharray="2 3" strokeOpacity="0.5" />
+          <text x={PAD_L + 44} y={SVG_H - 6} fill="#10b981" fontSize="8" opacity="0.6">
+            {ALL_KPI_DEFS.find((d) => d.key === sKey)?.short} = tamanho
+          </text>
+        </g>
+      )}
 
-            {/* Team name (rotated) */}
-            <text
-              x={cx.toFixed(1)}
-              y={(PAD_T + CHART_H + 14).toFixed(1)}
-              textAnchor="end"
-              fill="#e5e7eb"
-              fontSize={nameFontSize}
-              fontWeight="500"
-              transform={`rotate(-38, ${cx.toFixed(1)}, ${(PAD_T + CHART_H + 14).toFixed(1)})`}
-            >
-              {clip(t.pais, 16)}
-            </text>
-          </g>
-        );
-      })}
+      {/* Temperature legend bar */}
+      {cKey && (
+        <g>
+          <text x={PAD_L + PLOT_W - 4} y={SVG_H - 26}
+            textAnchor="end" fill="#2d4a7a" fontSize="8.5" opacity="0.7">
+            {ALL_KPI_DEFS.find((d) => d.key === cKey)?.label}
+          </text>
+          <rect x={PAD_L + PLOT_W - 180} y={SVG_H - 18}
+            width={180} height={8} rx={4}
+            fill="url(#tc-temp)" opacity="0.85" />
+          <text x={PAD_L + PLOT_W - 180} y={SVG_H - 5}
+            fill="#2d4a7a" fontSize="7.5" opacity="0.7">
+            {fmtTick(0, cKey)} (frio)
+          </text>
+          <text x={PAD_L + PLOT_W} y={SVG_H - 5}
+            textAnchor="end" fill="#f59e0b" fontSize="7.5" opacity="0.8">
+            (quente) {fmtTick(1, cKey)}
+          </text>
+        </g>
+      )}
 
-      {/* Axes */}
-      <line x1={PAD_L} y1={PAD_T} x2={PAD_L} y2={PAD_T + CHART_H}
-        stroke="#374151" strokeWidth="1" />
-      <line x1={PAD_L} y1={PAD_T + CHART_H} x2={PAD_L + CHART_W} y2={PAD_T + CHART_H}
-        stroke="#374151" strokeWidth="1" />
+      {/* Bubbles — non-highlighted pass first (painter's algorithm) */}
+      {([false, true] as boolean[]).flatMap((hiPass) =>
+        teams
+          .filter((t) => {
+            const isHi = hiQ !== "" && t.pais.toLowerCase().includes(hiQ);
+            return isHi === hiPass;
+          })
+          .map((t) => {
+            const nx = norm(Number(t[xKey]) || 0, xKey);
+            const ny = norm(Number(t[yKey]) || 0, yKey);
+            const cx = toSvgX(nx);
+            const cy = toSvgY(ny);
+
+            const r = sKey
+              ? MIN_R + norm(Number(t[sKey]) || 0, sKey) * (MAX_R - MIN_R)
+              : DEF_R;
+
+            const col = cKey
+              ? tempColor(norm(Number(t[cKey]) || 0, cKey))
+              : "#0ea5e9";
+
+            const isHi = hiQ !== "" && t.pais.toLowerCase().includes(hiQ);
+            const code = countryCode(t.pais);
+
+            /* label side: flip when near right/top edge */
+            const lx = nx > 0.84 ? cx - r - 4 : cx + r + 4;
+            const ly = ny > 0.88 ? cy + r + 12 : cy - r - 5;
+            const la = nx > 0.84 ? "end" : "start";
+
+            return (
+              <g key={t.pais} filter={isHi ? "url(#tc-glow)" : "url(#tc-soft)"}>
+                {/* Halo glow ring */}
+                <circle cx={cx} cy={cy} r={r + 8}
+                  fill={col} opacity={isHi ? 0.18 : 0.05} />
+
+                {/* Main bubble */}
+                <circle cx={cx} cy={cy} r={r}
+                  fill={col}
+                  fillOpacity={isHi ? 0.88 : 0.52}
+                  stroke={col}
+                  strokeWidth={isHi ? 1.5 : 0.6}
+                  strokeOpacity={isHi ? 0.9 : 0.45} />
+
+                {/* Country code inside bubble */}
+                {r >= 9 && (
+                  <text x={cx} y={cy + 3.5}
+                    textAnchor="middle"
+                    fill={isHi ? "#fff" : "#e2e8f0"}
+                    fontSize={r >= 16 ? 9 : 7}
+                    fontWeight={isHi ? "800" : "700"}
+                    opacity={isHi ? 1 : 0.9}>
+                    {code}
+                  </text>
+                )}
+
+                {/* Full name label for highlighted */}
+                {isHi && (
+                  <text x={lx} y={ly}
+                    textAnchor={la}
+                    fill="#fff" fontSize={10.5}
+                    fontWeight="700" opacity="0.95">
+                    {t.pais}
+                  </text>
+                )}
+              </g>
+            );
+          })
+      )}
     </svg>
   );
 }
 
-/* ── Stats Table ─────────────────────────────────────────────────────── */
+/* ────────────────────────────────────────────────────────────────────────
+   Main Component
+   ──────────────────────────────────────────────────────────────────────── */
 
-function StatsTable({ teams, kpis }: { teams: TimeStat[]; kpis: KpiKey[] }) {
-  if (teams.length === 0) return null;
-  return (
-    <div className="overflow-auto rounded-lg border border-gray-700/50 h-full">
-      <table className="w-full text-xs text-left">
-        <thead>
-          <tr className="bg-gray-800 text-gray-400 uppercase tracking-wide">
-            <th className="px-3 py-2 w-7">#</th>
-            <th className="px-3 py-2">Seleção</th>
-            <th className="px-3 py-2 text-center w-10">Jog</th>
-            {kpis.map((k, ki) => (
-              <th key={String(k)} className="px-3 py-2 text-right whitespace-nowrap"
-                style={{ color: KPI_COLORS[ki] }}>
-                {KPI_DEFS.find((d) => d.key === k)?.short}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-gray-800">
-          {teams.map((t, idx) => (
-            <tr key={t.pais} className="hover:bg-gray-800/50 transition-colors">
-              <td className="px-3 py-2 text-gray-500">{idx + 1}</td>
-              <td className="px-3 py-2 font-semibold text-white">{t.pais}</td>
-              <td className="px-3 py-2 text-center text-gray-400">{t.total_jogadores}</td>
-              {kpis.map((k, ki) => (
-                <td key={String(k)} className="px-3 py-2 text-right font-mono font-semibold"
-                  style={{ color: KPI_COLORS[ki] }}>
-                  {fmtVal(Number(t[k]) || 0, k)}
-                </td>
-              ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
+export default function TeamChart({
+  times,
+  lastUpdated,
+}: {
+  times:       TimeStatCompleto[];
+  lastUpdated: string | null;
+}) {
+  const [kpis,   setKpis]   = useState<KpiKey[]>(["total_gols", "total_finalizacoes"]);
+  const [search, setSearch] = useState("");
 
-/* ── Main component ───────────────────────────────────────────────────── */
-
-export default function TeamChart({ times, lastUpdated }: { times: TimeStat[]; lastUpdated: string | null }) {
-  const [kpis,       setKpis]       = useState<KpiKey[]>(["total_faltas_cometidas"]);
-  const [nameSearch, setNameSearch] = useState<string>("");
-
-  const primaryKpi = kpis[0];
-
-  /* ── Universe max + avg per KPI ──────────────────────────────── */
-
+  /* Universe min/max: media_ uses real min for better axis spread */
   const uMax = useMemo(() => {
     const r = {} as Record<KpiKey, number>;
-    for (const { key } of KPI_DEFS) {
+    for (const { key } of ALL_KPI_DEFS)
       r[key] = Math.max(...times.map((t) => Number(t[key]) || 0), 1);
-    }
     return r;
   }, [times]);
 
-  const uAvg = useMemo(() => {
+  const uMin = useMemo(() => {
     const r = {} as Record<KpiKey, number>;
-    for (const { key } of KPI_DEFS) {
+    for (const { key } of ALL_KPI_DEFS) {
       const vals = times.map((t) => Number(t[key]) || 0);
-      r[key] = vals.reduce((a, b) => a + b, 0) / (vals.length || 1);
+      r[key] = String(key).startsWith("media_")
+        ? Math.min(...vals) * 0.95
+        : 0;
     }
     return r;
   }, [times]);
-
-  /* ── Pinned teams (name search) ──────────────────────────────── */
-
-  const pinned = useMemo(() => {
-    if (!nameSearch.trim()) return [];
-    const q = nameSearch.toLowerCase();
-    return times.filter((t) => t.pais.toLowerCase().includes(q)).slice(0, 10);
-  }, [times, nameSearch]);
-
-  /* ── Chart teams: pinned ∪ top-N, max 10, sorted by primary KPI ─ */
-
-  const chartTeams = useMemo(() => {
-    const pinnedNames = new Set(pinned.map((t) => t.pais));
-    const slots = Math.max(0, 20 - Math.min(pinned.length, 20));
-    const topRest = times
-      .filter((t) => !pinnedNames.has(t.pais))
-      .sort((a, b) => (Number(b[primaryKpi]) || 0) - (Number(a[primaryKpi]) || 0))
-      .slice(0, slots);
-    return [...pinned, ...topRest]
-      .slice(0, 20)
-      .sort((a, b) => (Number(b[primaryKpi]) || 0) - (Number(a[primaryKpi]) || 0));
-  }, [pinned, times, primaryKpi]);
-
-  /* ── KPI toggle ──────────────────────────────────────────────── */
 
   function toggleKpi(key: KpiKey) {
     if (kpis.includes(key)) {
       if (kpis.length > 1) setKpis(kpis.filter((k) => k !== key));
-    } else if (kpis.length < 3) {
+    } else if (kpis.length < 4) {
       setKpis([...kpis, key]);
     }
   }
 
-  /* ── Render ──────────────────────────────────────────────────── */
-
   return (
     <div className="space-y-4">
 
-      {/* ── Filter bar ──────────────────────────────────────────── */}
-      <div className="bg-gray-800/60 rounded-xl p-4 space-y-3 border border-gray-700/40">
+      {/* ── Filter Panel ──────────────────────────────────────────────── */}
+      <div style={{
+        background: "linear-gradient(145deg,#050d2e99 0%,#0a162888 60%,#050d2e99 100%)",
+        border: "1px solid #1e3a8a38",
+        backdropFilter: "blur(16px)",
+        borderRadius: "16px",
+        padding: "18px 20px",
+      }}>
 
-        {/* KPI pills */}
-        <div>
-          <div className="flex items-center gap-2 mb-2">
-            <p className="text-[10px] uppercase tracking-widest text-gray-500">KPIs</p>
-            <span className="text-[10px] text-gray-600">
-              ({kpis.length}/3 · ordenação pelo 1º)
-            </span>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {KPI_DEFS.map(({ key, label }) => {
-              const idx        = kpis.indexOf(key);
-              const isSelected = idx !== -1;
-              const isDisabled = !isSelected && kpis.length >= 3;
-              const color      = isSelected ? KPI_COLORS[idx] : undefined;
-              return (
-                <button
-                  key={String(key)}
-                  onClick={() => toggleKpi(key)}
-                  disabled={isDisabled}
-                  className={`px-3 py-1 rounded-full text-xs font-medium transition-colors border ${
-                    isSelected
-                      ? "text-white border-transparent"
-                      : isDisabled
-                      ? "bg-gray-800 text-gray-600 border-gray-700 cursor-not-allowed"
-                      : "bg-gray-700 text-gray-300 border-gray-600 hover:bg-gray-600"
-                  }`}
-                  style={isSelected ? { backgroundColor: color, borderColor: color } : {}}
-                >
-                  {isSelected && (
-                    <span className="mr-1 font-bold opacity-75">{idx + 1}·</span>
-                  )}
-                  {label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Team search */}
-        <div className="flex flex-wrap gap-4 items-end">
-          <div className="flex-1 min-w-[220px] max-w-sm">
-            <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-1.5">
-              Seleção <span className="text-emerald-600">(fixa no gráfico)</span>
-            </p>
-            <input
-              type="text"
-              placeholder="Buscar e fixar seleção…"
-              value={nameSearch}
-              onChange={(e) => setNameSearch(e.target.value)}
-              className="w-full bg-gray-700 border border-gray-600 text-gray-200 text-xs rounded-lg px-2.5 py-1.5 placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-            />
-          </div>
-
-          <div className="text-xs text-gray-500 pb-1.5">
-            <span className="text-gray-300 font-semibold">{chartTeams.length}</span>/20 no gráfico
-            {pinned.length > 0 && (
-              <span className="text-emerald-500 ml-1">
-                · {pinned.length} fixo{pinned.length > 1 ? "s" : ""}
-              </span>
-            )}
-            <span className="text-gray-600 ml-2">de {times.length} seleções</span>
-          </div>
-        </div>
-      </div>
-
-      {/* ── Gráfico de colunas agrupadas (largura total) ────────── */}
-      <div className="bg-gray-900/50 rounded-xl border border-gray-700/50 pt-4 pb-3">
-        {/* Legend com padding igual ao filtro */}
-        <div className="flex flex-wrap items-center gap-x-5 gap-y-1 px-4 mb-3">
-          {kpis.map((k, ki) => (
-            <span key={String(k)} className="flex items-center gap-2 text-xs">
-              <span className="w-4 h-3 rounded-sm shrink-0"
-                style={{ backgroundColor: KPI_COLORS[ki] }} />
-              <span style={{ color: KPI_COLORS[ki] }}>
-                {ki + 1}. {KPI_DEFS.find((d) => d.key === k)?.label}
-              </span>
-            </span>
-          ))}
-          <span className="text-[10px] text-gray-600 ml-auto">
-            % normalizado pelo máx do universo · --- média
+        {/* Slot role legend */}
+        <div className="flex flex-wrap gap-x-5 gap-y-2 mb-5">
+          {SLOTS.map((slot, i) => {
+            const assigned = kpis[i];
+            const def = assigned ? ALL_KPI_DEFS.find((d) => d.key === assigned) : null;
+            return (
+              <div key={slot.label} className="flex items-center gap-1.5">
+                <span style={{
+                  width: 22, height: 22, borderRadius: 5,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  fontSize: 9, fontWeight: 900,
+                  background: assigned ? slot.glow : "#0a162855",
+                  border: `1px solid ${assigned ? slot.color + "55" : "#1e3a8a28"}`,
+                  color: assigned ? slot.color : "#1e3a8a",
+                }}>
+                  {slot.badge}
+                </span>
+                <span style={{ fontSize: 11, color: assigned ? slot.color : "#2d4a7a" }}>
+                  {slot.label}
+                </span>
+                {def ? (
+                  <span style={{ fontSize: 10, color: "#1e3a8a88" }}>· {def.short}</span>
+                ) : i >= 2 ? (
+                  <span style={{ fontSize: 10, color: "#1a2d4d" }}>· opcional</span>
+                ) : null}
+              </div>
+            );
+          })}
+          <span style={{
+            marginLeft: "auto", alignSelf: "center",
+            fontSize: 10, color: "#1e3060",
+          }}>
+            {kpis.length}/4 KPIs selecionados
           </span>
         </div>
 
-        {/* SVG com margem mínima nas laterais */}
-        <div className="px-1">
-          <GroupedBarChart
-            teams={chartTeams}
-            kpis={kpis}
-            uMax={uMax}
-            uAvg={uAvg}
-          />
+        {/* KPI pills by category */}
+        <div className="space-y-2">
+          {KPI_CATEGORIES.map(({ cat, kpis: catKpis }) => (
+            <div key={cat} className="flex flex-wrap items-center gap-x-1.5 gap-y-1.5">
+              <span style={{
+                width: 72, flexShrink: 0,
+                fontSize: 9, letterSpacing: "0.09em",
+                textTransform: "uppercase", color: "#1e3a8a",
+              }}>
+                {cat}
+              </span>
+              {catKpis.map(({ key, label }) => {
+                const idx        = kpis.indexOf(key);
+                const isSelected = idx !== -1;
+                const slot       = isSelected ? SLOTS[idx] : null;
+                const isDisabled = !isSelected && kpis.length >= 4;
+
+                return (
+                  <button
+                    key={String(key)}
+                    onClick={() => toggleKpi(key)}
+                    disabled={isDisabled}
+                    style={{
+                      padding: "2px 10px",
+                      borderRadius: 9999,
+                      fontSize: 11,
+                      fontWeight: isSelected ? 600 : 400,
+                      cursor: isDisabled ? "not-allowed" : "pointer",
+                      transition: "all 0.12s ease",
+                      background: isSelected
+                        ? slot!.glow
+                        : isDisabled ? "#0a162840" : "#0a162865",
+                      border: `1px solid ${
+                        isSelected
+                          ? slot!.color + "55"
+                          : isDisabled ? "#1e3a8a20" : "#1e3a8a35"
+                      }`,
+                      color: isSelected
+                        ? slot!.color
+                        : isDisabled ? "#1a2d4d" : "#3a5a8a",
+                    }}
+                  >
+                    {isSelected && (
+                      <span style={{ marginRight: 4, fontSize: 9, opacity: 0.85 }}>
+                        {slot!.badge}
+                      </span>
+                    )}
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+          ))}
+        </div>
+
+        {/* Search / highlight */}
+        <div style={{
+          marginTop: 16, paddingTop: 16,
+          borderTop: "1px solid #1e3a8a22",
+          display: "flex", alignItems: "center", gap: 12,
+        }}>
+          <div>
+            <p style={{
+              fontSize: 9, letterSpacing: "0.09em",
+              textTransform: "uppercase", color: "#1e3a8a", marginBottom: 7,
+            }}>
+              Seleção{" "}
+              <span style={{ color: "#0ea5e9" }}>(destaque no gráfico)</span>
+            </p>
+            <input
+              type="text"
+              placeholder="Buscar e destacar seleção…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              style={{
+                background: "#050d2e85",
+                border: "1px solid #1e3a8a45",
+                borderRadius: 9,
+                padding: "6px 13px",
+                fontSize: 12,
+                color: "#94a3b8",
+                outline: "none",
+                width: 260,
+              }}
+            />
+          </div>
+          <div style={{ fontSize: 11, color: "#1e3060", paddingTop: 16 }}>
+            <span style={{ color: "#3a5a8a", fontWeight: 600 }}>{times.length}</span> seleções
+          </div>
         </div>
       </div>
 
-      {/* ── Rodapé ───────────────────────────────────────────────── */}
-      <p className="text-[10px] text-gray-600 mt-1 px-1">
+      {/* ── Chart Panel ───────────────────────────────────────────────── */}
+      <div style={{
+        background: "linear-gradient(160deg,#02060f 0%,#060f26 45%,#030812 100%)",
+        border: "1px solid #1e3a8a28",
+        borderRadius: 16,
+        padding: "12px 6px 6px",
+        boxShadow: "0 0 80px #0ea5e906 inset, 0 0 40px #a855f703 inset",
+      }}>
+        <BubbleChart
+          teams={times}
+          kpis={kpis}
+          uMin={uMin}
+          uMax={uMax}
+          highlight={search}
+        />
+      </div>
+
+      {/* ── Footer ────────────────────────────────────────────────────── */}
+      <p style={{ fontSize: 10, color: "#1a2d4d", paddingLeft: 4 }}>
         Fonte: fifa.com
-        {lastUpdated && (
-          <> · Extração: {fmtDate(lastUpdated)}</>
-        )}
+        {lastUpdated && <> · Extração: {fmtDate(lastUpdated)}</>}
       </p>
     </div>
   );
