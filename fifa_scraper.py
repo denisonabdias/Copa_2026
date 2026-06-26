@@ -20,35 +20,210 @@ except ImportError:
 
 _DB_PROJECT_REF = "eeynngvwhhpvkitcecjx"
 
-# Mapeamento de colunas do CSV → schema da tabela disciplina_jogadores
-_DISC_COL_MAP = {
-    "Posição":                      "ranking",
-    "Jogador":                      "nome",
-    "País":                         "pais",
-    "Posição Campo":                "posicao_campo",
-    "Faltas cometidas":             "faltas_cometidas",
-    "Faltas sofridas":              "faltas_sofridas",
-    "Cartões amarelos":             "cartoes_amarelos",
-    "Cartões vermelhos":            "cartoes_vermelhos",
-    "Cartões vermelhos indiretos":  "cartoes_vermelhos_indiretos",
-    "Impedimentos":                 "impedimentos",
+# Configuração de UPSERT para cada aba — col_map usa nomes do site FIFA → nomes da tabela
+# clean: funções aplicadas após rename, keyed pelo nome da coluna no banco
+_UPSERT_CONFIGS = {
+    "Artilharia": {
+        "table": "gols_jogadores",
+        "col_map": {
+            "Posição": "ranking",
+            "Jogador": "nome",
+            "País": "pais",
+            "Posição Campo": "posicao_campo",
+            "Gols": "gols",
+            "Assistências": "assistencias",
+            "Minutos jogados": "minutos_jogados",
+        },
+        "int_cols": ["ranking", "gols", "assistencias", "minutos_jogados"],
+        "float_cols": [],
+        "clean": {},
+    },
+    "Ataque": {
+        "table": "ataque_jogadores",
+        "col_map": {
+            "Posição": "ranking",
+            "Jogador": "nome",
+            "País": "pais",
+            "Posição Campo": "posicao_campo",
+            "Assistências": "assistencias",
+            "Finalizações certas": "finalizacoes_certas",
+            "Finalizações": "finalizacoes",
+            "Finalizações convertidas Porcentagem (%)": "finalizacoes_convertidas_pct",
+            "Chutes na área": "chutes_na_area",
+            "Chutes fora da área": "chutes_fora_area",
+            "Cabeceios a gol": "cabeceos_a_gol",
+            "GE": "ge",
+            "Eficiência em GE": "eficiencia_ge",
+            "Escanteios": "escanteios",
+        },
+        "int_cols": ["ranking", "assistencias", "finalizacoes_certas", "finalizacoes",
+                     "chutes_na_area", "chutes_fora_area", "cabeceos_a_gol",
+                     "eficiencia_ge", "escanteios"],
+        "float_cols": ["finalizacoes_convertidas_pct", "ge"],
+        "clean": {"eficiencia_ge": lambda s: str(s).replace("x", "").strip()},
+    },
+    "Defesa": {
+        "table": "defesa_jogadores",
+        "col_map": {
+            "Posição": "ranking",
+            "Jogador": "nome",
+            "País": "pais",
+            "Posição Campo": "posicao_campo",
+            "Gols contra": "gols_contra",
+            "Perdas de bola forçadas": "perdas_bola_forcadas",
+            "Pressões defensivas exercidas": "pressoes_defensivas",
+            "Pressões defensivas exercidas diretamente": "pressoes_defensivas_diretas",
+        },
+        "int_cols": ["ranking", "gols_contra", "perdas_bola_forcadas",
+                     "pressoes_defensivas", "pressoes_defensivas_diretas"],
+        "float_cols": [],
+        "clean": {},
+    },
+    "Distribuição": {
+        "table": "distribuicao_jogadores",
+        "col_map": {
+            "Posição": "ranking",
+            "Jogador": "nome",
+            "País": "pais",
+            "Posição Campo": "posicao_campo",
+            "Passes": "passes",
+            "Precisão dos passes (%)": "precisao_passes_pct",
+            "Cruzamentos": "cruzamentos",
+            "Precisão dos cruzamentos (%)": "precisao_cruzamentos_pct",
+            "Tentativas de ruptura da linha defensiva": "tentativas_ruptura_linha",
+            "Precisão das rupturas da linha defensiva ((%))": "precisao_ruptura_linha_pct",
+            "Tentativas de mudança de direção do jogo": "tentativas_mudanca_direcao",
+            "Precisão das mudanças de direção do jogo ((%))": "precisao_mudanca_direcao_pct",
+        },
+        "int_cols": ["ranking", "passes", "cruzamentos",
+                     "tentativas_ruptura_linha", "tentativas_mudanca_direcao"],
+        "float_cols": ["precisao_passes_pct", "precisao_cruzamentos_pct",
+                       "precisao_ruptura_linha_pct", "precisao_mudanca_direcao_pct"],
+        "clean": {},
+    },
+    "Disciplina": {
+        "table": "disciplina_jogadores",
+        "col_map": {
+            "Posição":                     "ranking",
+            "Jogador":                     "nome",
+            "País":                        "pais",
+            "Posição Campo":               "posicao_campo",
+            "Faltas cometidas":            "faltas_cometidas",
+            "Faltas sofridas":             "faltas_sofridas",
+            "Cartões amarelos":            "cartoes_amarelos",
+            "Cartões vermelhos":           "cartoes_vermelhos",
+            "Cartões vermelhos indiretos": "cartoes_vermelhos_indiretos",
+            "Impedimentos":                "impedimentos",
+        },
+        "int_cols": ["ranking", "faltas_cometidas", "faltas_sofridas",
+                     "cartoes_amarelos", "cartoes_vermelhos",
+                     "cartoes_vermelhos_indiretos", "impedimentos"],
+        "float_cols": [],
+        "clean": {},
+    },
+    "Goleiro": {
+        "table": "goleiro_jogadores",
+        "col_map": {
+            "Posição": "ranking",
+            "Jogador": "nome",
+            "País": "pais",
+            "Posição Campo": "posicao_campo",
+            "Defesas da goleira": "defesas",
+            "Ações do goleiro dentro da área penal": "acoes_dentro_area",
+            "Ações do goleiro fora da área penal": "acoes_fora_area",
+        },
+        "int_cols": ["ranking", "defesas", "acoes_dentro_area", "acoes_fora_area"],
+        "float_cols": [],
+        "clean": {},
+    },
+    "Movimentação": {
+        "table": "movimentacao_jogadores",
+        "col_map": {
+            "Posição": "ranking",
+            "Jogador": "nome",
+            "País": "pais",
+            "Posição Campo": "posicao_campo",
+            "Pedidos de bola": "pedidos_bola",
+            "Pedidos atrás": "pedidos_atras",
+            "Pedidos entre": "pedidos_entre",
+            "Pedidos na frente": "pedidos_frente",
+            "Pedidos dentro da forma coletiva": "pedidos_dentro_forma_coletiva",
+            "Pedidos fora da forma coletiva": "pedidos_fora_forma_coletiva",
+            "Recepções atrás": "recepcoes_atras",
+            "Recepções entre as linhas defensiva e de meio-campo": "recepcoes_entre_linhas",
+            "Recepções sob pressão": "recepcoes_sob_pressao",
+            "Participações do jogador": "participacoes",
+        },
+        "int_cols": ["ranking", "pedidos_bola", "pedidos_atras", "pedidos_entre",
+                     "pedidos_frente", "pedidos_dentro_forma_coletiva",
+                     "pedidos_fora_forma_coletiva", "recepcoes_atras",
+                     "recepcoes_entre_linhas", "recepcoes_sob_pressao", "participacoes"],
+        "float_cols": [],
+        "clean": {},
+    },
+    "Físico": {
+        "table": "fisico_jogadores",
+        "col_map": {
+            "Posição": "ranking",
+            "Jogador": "nome",
+            "País": "pais",
+            "Posição Campo": "posicao_campo",
+            "Velocidade média (km/h)": "velocidade_media",
+            "Corridas em alta velocidade": "corridas_alta_velocidade",
+            "Arrancadas": "arrancadas",
+            "Distância total (m)": "distancia_total",
+        },
+        "int_cols": ["ranking", "corridas_alta_velocidade", "arrancadas"],
+        "float_cols": ["velocidade_media", "distancia_total"],
+        "clean": {},
+    },
 }
 
-def _prepare_records(df: pd.DataFrame) -> list:
-    """Normaliza o DataFrame e retorna lista de dicts prontos para inserção."""
-    df_db = df.rename(columns=_DISC_COL_MAP).copy()
-    int_cols = [
-        "ranking", "faltas_cometidas", "faltas_sofridas",
-        "cartoes_amarelos", "cartoes_vermelhos",
-        "cartoes_vermelhos_indiretos", "impedimentos",
-    ]
-    for col in int_cols:
+
+def _upsert_table(df: pd.DataFrame, cfg: dict) -> None:
+    """UPSERT genérico para qualquer aba.
+    Tenta psycopg2 (SUPABASE_DB_PASSWORD) primeiro,
+    depois supabase-py SDK (SUPABASE_SERVICE_KEY).
+    """
+    table = cfg["table"]
+    col_map = cfg["col_map"]
+
+    # Renomeia apenas colunas presentes no df
+    existing_map = {k: v for k, v in col_map.items() if k in df.columns}
+    df_db = df.rename(columns=existing_map).copy()
+    db_cols = [v for v in col_map.values() if v in df_db.columns]
+
+    # Aplica funções de limpeza específicas (ex: remover "x" de eficiencia_ge)
+    for col, fn in cfg.get("clean", {}).items():
+        if col in df_db.columns:
+            df_db[col] = df_db[col].apply(fn)
+
+    # Converte tipos
+    for col in cfg.get("int_cols", []):
         if col in df_db.columns:
             df_db[col] = pd.to_numeric(df_db[col], errors="coerce").fillna(0).astype(int)
-    return df_db[list(_DISC_COL_MAP.values())].to_dict(orient="records")
+    for col in cfg.get("float_cols", []):
+        if col in df_db.columns:
+            df_db[col] = pd.to_numeric(df_db[col], errors="coerce").fillna(0).astype(float)
 
-def _upsert_via_psycopg2(records: list) -> bool:
-    """UPSERT direto via psycopg2 usando SUPABASE_DB_PASSWORD."""
+    # Filtra linhas sem nome ou país
+    df_db = df_db[df_db["nome"].astype(str).str.strip().astype(bool)
+                  & df_db["pais"].astype(str).str.strip().astype(bool)]
+
+    records = df_db[db_cols].to_dict(orient="records")
+    total = len(records)
+    print(f"  [Supabase] Enviando {total} registros para {table}...")
+
+    if _upsert_via_psycopg2_generic(records, table, db_cols):
+        print(f"  [Supabase] {total} registros sincronizados via psycopg2.")
+    elif _upsert_via_sdk_generic(records, table):
+        print(f"  [Supabase] {total} registros sincronizados via SDK.")
+    else:
+        print("  [Supabase] Nenhum metodo de UPSERT disponivel.")
+        print("             Defina SUPABASE_DB_PASSWORD ou SUPABASE_SERVICE_KEY.")
+
+
+def _upsert_via_psycopg2_generic(records: list, table: str, cols: list) -> bool:
     db_password = os.environ.get("SUPABASE_DB_PASSWORD", "")
     if not db_password or not _PSYCOPG2_AVAILABLE:
         return False
@@ -59,29 +234,28 @@ def _upsert_via_psycopg2(records: list) -> bool:
             password=db_password, sslmode="require", connect_timeout=15,
         )
         conn.autocommit = True
-        cols = list(_DISC_COL_MAP.values())
         placeholders = ", ".join(["%s"] * len(cols))
         col_names    = ", ".join(cols)
         update_set   = ", ".join(
             f"{c} = EXCLUDED.{c}" for c in cols if c not in ("nome", "pais")
         )
         sql = f"""
-            INSERT INTO public.disciplina_jogadores ({col_names})
+            INSERT INTO public.{table} ({col_names})
             VALUES ({placeholders})
             ON CONFLICT (nome, pais) DO UPDATE SET
                 {update_set},
                 updated_at = now()
         """
         with conn.cursor() as cur:
-            cur.executemany(sql, [tuple(r[c] for c in cols) for r in records])
+            cur.executemany(sql, [tuple(r.get(c) for c in cols) for r in records])
         conn.close()
         return True
     except Exception as e:
         print(f"  [Supabase/psycopg2] ERRO: {e}")
         return False
 
-def _upsert_via_sdk(records: list) -> bool:
-    """UPSERT via supabase-py SDK usando SUPABASE_SERVICE_KEY."""
+
+def _upsert_via_sdk_generic(records: list, table: str) -> bool:
     url = os.environ.get("SUPABASE_URL", "")
     key = os.environ.get("SUPABASE_SERVICE_KEY", "")
     if not url or not key or not _SUPABASE_SDK_AVAILABLE:
@@ -90,30 +264,13 @@ def _upsert_via_sdk(records: list) -> bool:
         client = create_client(url, key)
         BATCH = 500
         for i in range(0, len(records), BATCH):
-            client.table("disciplina_jogadores").upsert(
+            client.table(table).upsert(
                 records[i : i + BATCH], on_conflict="nome,pais"
             ).execute()
         return True
     except Exception as e:
         print(f"  [Supabase/SDK] ERRO: {e}")
         return False
-
-def upsert_disciplina(df: pd.DataFrame) -> None:
-    """Faz UPSERT dos dados de disciplina no Supabase.
-    Tenta psycopg2 (SUPABASE_DB_PASSWORD) primeiro,
-    depois supabase-py SDK (SUPABASE_SERVICE_KEY).
-    """
-    records = _prepare_records(df)
-    total   = len(records)
-    print(f"  [Supabase] Enviando {total} registros para disciplina_jogadores...")
-
-    if _upsert_via_psycopg2(records):
-        print(f"  [Supabase] {total} registros sincronizados via psycopg2.")
-    elif _upsert_via_sdk(records):
-        print(f"  [Supabase] {total} registros sincronizados via SDK.")
-    else:
-        print("  [Supabase] Nenhum metodo de UPSERT disponivel.")
-        print("             Defina SUPABASE_DB_PASSWORD ou SUPABASE_SERVICE_KEY.")
 
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -369,9 +526,9 @@ async def scrape_tab(page, config, is_first=False):
     df.to_csv(file_path, index=False, encoding="utf-8-sig")
     print(f"Sucesso! Arquivo '{filename}' salvo com {len(df)} registros.")
 
-    # 8. Sincronizar com Supabase (somente aba Disciplina)
-    if name == "Disciplina":
-        upsert_disciplina(df)
+    # 8. Sincronizar com Supabase
+    if name in _UPSERT_CONFIGS:
+        _upsert_table(df, _UPSERT_CONFIGS[name])
 
 async def main():
     print("Iniciando navegador automatizado (modo headless)...")
