@@ -30,8 +30,14 @@ type KpiKey = keyof Pick<
   | "recepcoes_entre_linhas" | "recepcoes_sob_pressao" | "participacoes"
 >;
 
-type KpiDef = { key: KpiKey; label: string; short: string };
+type KpiDef      = { key: KpiKey; label: string; short: string };
 type KpiCategory = { cat: string; kpis: KpiDef[] };
+
+type RefVertex = {
+  label:    string;
+  color:    string;
+  values:   Record<KpiKey, number>;
+};
 
 /* ── KPI Categories ──────────────────────────────────────────────────── */
 
@@ -119,7 +125,16 @@ const KPI_CATEGORIES: KpiCategory[] = [
 ];
 
 const ALL_KPI_DEFS: KpiDef[] = KPI_CATEGORIES.flatMap((c) => c.kpis);
-const KPI_COLORS = ["#10b981", "#f97316", "#3b82f6"] as const;
+
+/* Slot-based palette (matches TeamChart) */
+const KPI_COLORS = ["#0ea5e9", "#a855f7", "#10b981"] as const;
+const KPI_GLOWS  = ["#0ea5e930", "#a855f730", "#10b98130"] as const;
+const KPI_BADGES = ["①", "②", "③"] as const;
+
+/* Reference vertex palette */
+const REF_MEDIA  = "#94a3b8";
+const REF_MAXIMO = "#fbbf24";
+const REF_MINIMO = "#6366f1";
 
 const POS_COLOR: Record<string, string> = {
   FW: "#f97316", MF: "#3b82f6", DF: "#10b981", GK: "#a855f7",
@@ -162,6 +177,11 @@ function fmtDate(iso: string) {
     hour: "2-digit", minute: "2-digit",
   });
 }
+function fmtNum(v: number): string {
+  if (v >= 10000) return `${(v / 1000).toFixed(0)}k`;
+  if (v >= 1000)  return `${(v / 1000).toFixed(1)}k`;
+  return Number.isInteger(v) ? String(v) : v.toFixed(1);
+}
 
 /* ── TeamMultiSelect ─────────────────────────────────────────────────── */
 
@@ -169,8 +189,8 @@ function TeamMultiSelect({
   countries, selected, onChange,
 }: {
   countries: string[];
-  selected: string[];
-  onChange: (v: string[]) => void;
+  selected:  string[];
+  onChange:  (v: string[]) => void;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -249,13 +269,15 @@ function TeamMultiSelect({
 /* ── Radar Chart ─────────────────────────────────────────────────────── */
 
 function RadarChart({
-  players, kpis, uMax,
+  players, kpis, uMax, refVertices,
 }: {
-  players: JogadorCompleto[];
-  kpis: KpiKey[];
-  uMax: Record<KpiKey, number>;
+  players:     JogadorCompleto[];
+  kpis:        KpiKey[];
+  uMax:        Record<KpiKey, number>;
+  refVertices: RefVertex[];
 }) {
-  const N = players.length;
+  const N     = players.length;
+  const TOTAL = N + refVertices.length;
 
   if (N === 0) {
     return (
@@ -264,45 +286,55 @@ function RadarChart({
       </div>
     );
   }
-  if (N < 3) {
-    return (
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: 192, gap: 4, fontSize: 13, color: "#6b8fc4" }}>
-        <span>Adicione pelo menos 3 jogadores para exibir o radar.</span>
-        <span style={{ fontSize: 11, color: "#4a6890" }}>({N} jogador{N > 1 ? "es" : ""} no momento)</span>
-      </div>
-    );
-  }
 
   const RINGS = [0.25, 0.5, 0.75, 1.0];
 
   function ringPts(frac: number) {
-    return toPoints(Array.from({ length: N }, (_, i) => rPoint(i, N, frac)));
+    return toPoints(Array.from({ length: TOTAL }, (_, i) => rPoint(i, TOTAL, frac)));
   }
-  function kpiPts(key: KpiKey) {
+
+  function allPts(key: KpiKey) {
     const max = uMax[key] || 1;
-    return toPoints(players.map((j, i) => rPoint(i, N, Math.min((j[key] || 0) / max, 1))));
+    const playerPts = players.map((j, i) =>
+      rPoint(i, TOTAL, Math.min((Number(j[key]) || 0) / max, 1))
+    );
+    const refPts = refVertices.map((rv, ri) =>
+      rPoint(N + ri, TOTAL, Math.min((rv.values[key] || 0) / max, 1))
+    );
+    return toPoints([...playerPts, ...refPts]);
   }
 
   return (
     <svg viewBox={`0 0 ${SVG_W} ${SVG_H}`} className="w-full" style={{ maxHeight: 540 }}>
       <defs>
-        <radialGradient id="pc-bg" cx="50%" cy="50%" r="70%">
+        <radialGradient id="pc-bg" cx="42%" cy="38%" r="68%">
           <stop offset="0%"   stopColor="#0d1f44" />
-          <stop offset="60%"  stopColor="#060f26" />
+          <stop offset="55%"  stopColor="#060f26" />
           <stop offset="100%" stopColor="#02060f" />
         </radialGradient>
       </defs>
       <rect width={SVG_W} height={SVG_H} fill="url(#pc-bg)" rx="12" />
 
-      {Array.from({ length: N }, (_, i) => {
-        const outer = rPoint(i, N, 1);
+      {/* Ambient cave light bands */}
+      <rect x={CX - R * 1.4} y={CY - R * 1.4} width={R * 2.8} height={R * 0.85}
+        fill="#0ea5e9" fillOpacity="0.018" />
+      <rect x={CX - R * 1.4} y={CY - R * 0.55} width={R * 2.8} height={R * 0.85}
+        fill="#7c3aed" fillOpacity="0.014" />
+
+      {/* Radial axes */}
+      {Array.from({ length: TOTAL }, (_, i) => {
+        const outer  = rPoint(i, TOTAL, 1);
+        const isRef  = i >= N;
+        const refCol = isRef ? refVertices[i - N].color : "#1e3a8a";
         return (
           <line key={i} x1={CX} y1={CY}
             x2={outer.x.toFixed(1)} y2={outer.y.toFixed(1)}
-            stroke="#1e3a8a" strokeWidth="1" strokeOpacity="0.3" />
+            stroke={refCol} strokeWidth="1"
+            strokeOpacity={isRef ? 0.3 : 0.3} strokeDasharray={isRef ? "4 4" : undefined} />
         );
       })}
 
+      {/* Ring polygons */}
       {RINGS.map((frac) => (
         <polygon key={frac} points={ringPts(frac)}
           fill="none"
@@ -311,8 +343,9 @@ function RadarChart({
           strokeWidth={frac === 1 ? "1.5" : "1"} />
       ))}
 
+      {/* Ring % labels */}
       {RINGS.slice(0, -1).map((frac) => {
-        const p = rPoint(0, N, frac);
+        const p = rPoint(0, TOTAL, frac);
         return (
           <text key={frac} x={(p.x - 5).toFixed(1)} y={(p.y + 3).toFixed(1)}
             textAnchor="end" fill="#2d4a7a" fontSize="9">
@@ -321,28 +354,42 @@ function RadarChart({
         );
       })}
 
+      {/* KPI polygons (players + ref vertices together) */}
       {kpis.map((key, ki) => {
         const color = KPI_COLORS[ki];
         const max   = uMax[key] || 1;
         return (
           <g key={String(key)}>
-            <polygon points={kpiPts(key)}
-              fill={color} fillOpacity={0.12 + ki * 0.04}
+            <polygon points={allPts(key)}
+              fill={color} fillOpacity={0.10 + ki * 0.04}
               stroke={color} strokeWidth="2" strokeOpacity="0.9" />
+
+            {/* Dots — players */}
             {players.map((j, i) => {
-              const norm = Math.min((j[key] || 0) / max, 1);
-              const p    = rPoint(i, N, norm);
+              const norm = Math.min((Number(j[key]) || 0) / max, 1);
+              const p    = rPoint(i, TOTAL, norm);
               return (
                 <circle key={j.id} cx={p.x.toFixed(1)} cy={p.y.toFixed(1)}
                   r="3.5" fill={color} stroke="#0f172a" strokeWidth="1.5" />
+              );
+            })}
+
+            {/* Dots — ref vertices */}
+            {refVertices.map((rv, ri) => {
+              const norm = Math.min((rv.values[key] || 0) / max, 1);
+              const p    = rPoint(N + ri, TOTAL, norm);
+              return (
+                <circle key={rv.label + ki} cx={p.x.toFixed(1)} cy={p.y.toFixed(1)}
+                  r="4" fill={rv.color} stroke="#0f172a" strokeWidth="1.5" opacity="0.9" />
               );
             })}
           </g>
         );
       })}
 
+      {/* Player vertex labels */}
       {players.map((j, i) => {
-        const a      = rAngle(i, N);
+        const a      = rAngle(i, TOTAL);
         const cosA   = Math.cos(a);
         const sinA   = Math.sin(a);
         const lx     = CX + LABEL_R * cosA;
@@ -350,7 +397,7 @@ function RadarChart({
         const anchor = cosA > 0.15 ? "start" : cosA < -0.15 ? "end" : "middle";
         const posCol = POS_COLOR[j.posicao_campo] ?? "#6b7280";
         const vy     = sinA < -0.4 ? -14 : sinA > 0.4 ? 6 : -5;
-        const dot    = rPoint(i, N, 1);
+        const dot    = rPoint(i, TOTAL, 1);
         return (
           <g key={j.id}>
             <circle cx={dot.x.toFixed(1)} cy={dot.y.toFixed(1)} r="3" fill="#2d4a7a" />
@@ -365,13 +412,48 @@ function RadarChart({
           </g>
         );
       })}
+
+      {/* Reference vertex labels */}
+      {refVertices.map((rv, ri) => {
+        const i      = N + ri;
+        const a      = rAngle(i, TOTAL);
+        const cosA   = Math.cos(a);
+        const sinA   = Math.sin(a);
+        const lx     = CX + LABEL_R * cosA;
+        const ly     = CY + LABEL_R * sinA;
+        const anchor = cosA > 0.15 ? "start" : cosA < -0.15 ? "end" : "middle";
+        const vy     = sinA < -0.4 ? -14 : sinA > 0.4 ? 6 : -5;
+        const dot    = rPoint(i, TOTAL, 1);
+        const val    = rv.values[kpis[0]];
+        return (
+          <g key={rv.label}>
+            <circle cx={dot.x.toFixed(1)} cy={dot.y.toFixed(1)} r="4"
+              fill={rv.color} fillOpacity="0.25"
+              stroke={rv.color} strokeWidth="1.5" strokeOpacity="0.7" />
+            <text x={lx.toFixed(1)} y={(ly + vy).toFixed(1)}
+              textAnchor={anchor} fill={rv.color} fontSize="11" fontWeight="700">
+              {rv.label}
+            </text>
+            <text x={lx.toFixed(1)} y={(ly + vy + 13).toFixed(1)}
+              textAnchor={anchor} fill={rv.color} fontSize="9" opacity="0.75">
+              {fmtNum(val)}
+            </text>
+          </g>
+        );
+      })}
     </svg>
   );
 }
 
 /* ── Stats Table ─────────────────────────────────────────────────────── */
 
-function StatsTable({ players, kpis }: { players: JogadorCompleto[]; kpis: KpiKey[] }) {
+function StatsTable({
+  players, kpis, refVertices,
+}: {
+  players:     JogadorCompleto[];
+  kpis:        KpiKey[];
+  refVertices: RefVertex[];
+}) {
   if (players.length === 0) return null;
   return (
     <div style={{ overflow: "auto", borderRadius: 12, border: "1px solid #1e3a8a28", height: "100%" }}>
@@ -391,6 +473,7 @@ function StatsTable({ players, kpis }: { players: JogadorCompleto[]; kpis: KpiKe
           </tr>
         </thead>
         <tbody>
+          {/* Player rows */}
           {players.map((j, idx) => (
             <tr key={j.id} style={{ borderBottom: "1px solid #0a162880" }} className="hover:bg-[#060f2660] transition-colors">
               <td className="px-3 py-2" style={{ color: "#2d4a7a" }}>{idx + 1}</td>
@@ -410,6 +493,41 @@ function StatsTable({ players, kpis }: { players: JogadorCompleto[]; kpis: KpiKe
               ))}
             </tr>
           ))}
+
+          {/* Separator */}
+          <tr>
+            <td colSpan={4 + kpis.length} style={{
+              padding: "3px 12px",
+              background: "#030812",
+              borderTop: "1px solid #1e3a8a30",
+              borderBottom: "1px solid #1e3a8a30",
+            }}>
+              <span style={{ fontSize: 9, letterSpacing: "0.08em", textTransform: "uppercase", color: "#2d4a7a" }}>
+                Referência · base completa
+              </span>
+            </td>
+          </tr>
+
+          {/* Reference rows */}
+          {refVertices.map((rv) => (
+            <tr key={rv.label} style={{ borderBottom: "1px solid #0a162860" }}>
+              <td className="px-3 py-2">
+                <span style={{ fontSize: 9, color: rv.color }}>◆</span>
+              </td>
+              <td className="px-3 py-2 font-semibold" style={{ color: rv.color }} colSpan={2}>
+                {rv.label}
+              </td>
+              <td className="px-3 py-2">
+                <span style={{ fontSize: 9, color: "#2d4a7a" }}>—</span>
+              </td>
+              {kpis.map((k, ki) => (
+                <td key={String(k)} className="px-3 py-2 text-right font-mono"
+                  style={{ color: rv.color, opacity: 0.85 }}>
+                  {fmtNum(rv.values[k])}
+                </td>
+              ))}
+            </tr>
+          ))}
         </tbody>
       </table>
     </div>
@@ -422,7 +540,7 @@ export default function PlayerChart({
   jogadores,
   lastUpdated,
 }: {
-  jogadores: JogadorCompleto[];
+  jogadores:   JogadorCompleto[];
   lastUpdated: string | null;
 }) {
   const [kpis,       setKpis]       = useState<KpiKey[]>(["gols"]);
@@ -430,20 +548,48 @@ export default function PlayerChart({
   const [teams,      setTeams]      = useState<string[]>([]);
   const [nameSearch, setNameSearch] = useState<string>("");
 
-  /* ── Derived ────────────────────────────────────────────────────── */
+  /* ── Universe stats (full base) ─────────────────────────────────── */
+
+  const uMax = useMemo(() => {
+    const r = {} as Record<KpiKey, number>;
+    for (const { key } of ALL_KPI_DEFS)
+      r[key] = Math.max(...jogadores.map((j) => Number(j[key]) || 0), 1);
+    return r;
+  }, [jogadores]);
+
+  /* ── Reference vertices: computed from full jogadores base ──────── */
+
+  const refVertices = useMemo<RefVertex[]>(() => {
+    const keyList = ALL_KPI_DEFS.map((d) => d.key);
+
+    function agg(fn: (vals: number[]) => number): Record<KpiKey, number> {
+      return Object.fromEntries(
+        keyList.map((key) => {
+          const vals = jogadores.map((j) => Number(j[key]) || 0);
+          return [key, fn(vals)];
+        })
+      ) as Record<KpiKey, number>;
+    }
+
+    const mediaValues = agg((vals) =>
+      vals.length > 0 ? vals.reduce((a, b) => a + b, 0) / vals.length : 0
+    );
+    const maxValues = agg((vals) => Math.max(...vals, 0));
+    const minValues = agg((vals) => Math.min(...vals.filter((v) => v > 0), 0));
+
+    return [
+      { label: "Média Geral", color: REF_MEDIA,  values: mediaValues },
+      { label: "Máximo",      color: REF_MAXIMO, values: maxValues   },
+      { label: "Mínimo",      color: REF_MINIMO, values: minValues   },
+    ];
+  }, [jogadores]);
+
+  /* ── Filtered + pinned players ──────────────────────────────────── */
 
   const countries = useMemo(
     () => [...new Set(jogadores.map((j) => j.pais))].sort(),
     [jogadores],
   );
-
-  const uMax = useMemo(() => {
-    const r = {} as Record<KpiKey, number>;
-    for (const { key } of ALL_KPI_DEFS) {
-      r[key] = Math.max(...jogadores.map((j) => Number(j[key]) || 0), 1);
-    }
-    return r;
-  }, [jogadores]);
 
   const primaryKpi = kpis[0];
 
@@ -486,7 +632,7 @@ export default function PlayerChart({
   return (
     <div className="space-y-4">
 
-      {/* ── Filter bar ────────────────────────────────────────────── */}
+      {/* ── Filter bar ─────────────────────────────────────────────── */}
       <div style={{
         background: "linear-gradient(145deg,#050d2e99 0%,#0a162888 60%,#050d2e99 100%)",
         border: "1px solid #1e3a8a38",
@@ -495,50 +641,84 @@ export default function PlayerChart({
         padding: "18px 20px",
       }} className="space-y-3">
 
-        {/* KPI pills grouped by category */}
-        <div>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-            <p style={{ fontSize: 9, letterSpacing: "0.09em", textTransform: "uppercase", color: "#4a6890" }}>KPIs</p>
-            <span style={{ fontSize: 10, color: "#3a5a7a" }}>
-              ({kpis.length}/3 · ordenação pelo 1º)
-            </span>
-          </div>
-          <div className="space-y-2">
-            {KPI_CATEGORIES.map(({ cat, kpis: catKpis }) => (
-              <div key={cat} className="flex flex-wrap items-center gap-x-1.5 gap-y-1.5">
-                <span style={{ fontSize: 9, letterSpacing: "0.09em", textTransform: "uppercase", color: "#4a6890", width: 68, flexShrink: 0 }}>
-                  {cat}
+        {/* KPI slot legend */}
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "8px 20px", marginBottom: 8 }}>
+          {KPI_COLORS.map((color, i) => {
+            const assigned = kpis[i];
+            const def = assigned ? ALL_KPI_DEFS.find((d) => d.key === assigned) : null;
+            const glow = KPI_GLOWS[i];
+            return (
+              <div key={i} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <span style={{
+                  width: 22, height: 22, borderRadius: 5,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  fontSize: 10, fontWeight: 900,
+                  background: assigned ? glow : "#0a162855",
+                  border: `1px solid ${assigned ? color + "55" : "#1e3a8a28"}`,
+                  color: assigned ? color : "#3a5a8a",
+                }}>
+                  {i + 1}
                 </span>
-                {catKpis.map(({ key, label }) => {
-                  const idx        = kpis.indexOf(key);
-                  const isSelected = idx !== -1;
-                  const isDisabled = !isSelected && kpis.length >= 3;
-                  const color      = isSelected ? KPI_COLORS[idx] : undefined;
-                  return (
-                    <button
-                      key={String(key)}
-                      onClick={() => toggleKpi(key)}
-                      disabled={isDisabled}
-                      className={`px-2.5 py-0.5 rounded-full text-xs font-medium transition-all border ${
-                        isSelected ? "text-white border-transparent" : isDisabled ? "cursor-not-allowed" : "hover:border-[#2a4a7a]"
-                      }`}
-                      style={isSelected
-                        ? { backgroundColor: color, borderColor: color }
-                        : isDisabled
-                        ? { background: "#0a162840", borderColor: "#1e3a8a20", color: "#2a3a55" }
-                        : { background: "#0a162865", borderColor: "#1e3a8a35", color: "#94a3b8" }
-                      }
-                    >
-                      {isSelected && (
-                        <span style={{ marginRight: 4, fontWeight: 900, opacity: 0.8 }}>{idx + 1}·</span>
-                      )}
-                      {label}
-                    </button>
-                  );
-                })}
+                <span style={{ fontSize: 11, color: assigned ? color : "#7090b8" }}>
+                  KPI {i + 1}
+                </span>
+                {def && (
+                  <span style={{ fontSize: 10, color: "#4a6890" }}>· {def.short}</span>
+                )}
+                {!def && i >= 1 && (
+                  <span style={{ fontSize: 10, color: "#3a5a7a" }}>· opcional</span>
+                )}
               </div>
-            ))}
-          </div>
+            );
+          })}
+          <span style={{ marginLeft: "auto", alignSelf: "center", fontSize: 10, color: "#4a6890" }}>
+            {kpis.length}/3 KPIs · ordenação pelo 1º
+          </span>
+        </div>
+
+        {/* KPI pills grouped by category */}
+        <div className="space-y-2">
+          {KPI_CATEGORIES.map(({ cat, kpis: catKpis }) => (
+            <div key={cat} className="flex flex-wrap items-center gap-x-1.5 gap-y-1.5">
+              <span style={{ fontSize: 9, letterSpacing: "0.09em", textTransform: "uppercase", color: "#4a6890", width: 68, flexShrink: 0 }}>
+                {cat}
+              </span>
+              {catKpis.map(({ key, label }) => {
+                const idx        = kpis.indexOf(key);
+                const isSelected = idx !== -1;
+                const isDisabled = !isSelected && kpis.length >= 3;
+                const color      = isSelected ? KPI_COLORS[idx] : undefined;
+                const glow       = isSelected ? KPI_GLOWS[idx] : undefined;
+                return (
+                  <button
+                    key={String(key)}
+                    onClick={() => toggleKpi(key)}
+                    disabled={isDisabled}
+                    style={{
+                      padding: "2px 10px",
+                      borderRadius: 9999,
+                      fontSize: 11,
+                      fontWeight: isSelected ? 600 : 400,
+                      cursor: isDisabled ? "not-allowed" : "pointer",
+                      transition: "all 0.12s ease",
+                      background: isSelected ? glow : isDisabled ? "#0a162840" : "#0a162865",
+                      border: `1px solid ${
+                        isSelected ? color! + "55" : isDisabled ? "#1e3a8a20" : "#1e3a8a35"
+                      }`,
+                      color: isSelected ? color : isDisabled ? "#2a3a55" : "#94a3b8",
+                    }}
+                  >
+                    {isSelected && (
+                      <span style={{ marginRight: 4, fontSize: 9, opacity: 0.85 }}>
+                        {KPI_BADGES[idx]}
+                      </span>
+                    )}
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+          ))}
         </div>
 
         {/* Filters row */}
@@ -552,13 +732,22 @@ export default function PlayerChart({
                 <button
                   key={p}
                   onClick={() => setPosition(p)}
-                  className={`px-2.5 py-1 rounded text-xs font-semibold transition-all border ${
-                    position === p ? "border-transparent text-white" : "hover:border-[#2a4a7a]"
-                  }`}
-                  style={position === p
-                    ? { backgroundColor: p === "all" ? "#374151" : POS_COLOR[p] }
-                    : { background: "#0a162865", borderColor: "#1e3a8a35", color: "#94a3b8" }
-                  }
+                  style={{
+                    padding: "4px 10px",
+                    borderRadius: 6,
+                    fontSize: 11,
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    transition: "all 0.12s ease",
+                    background: position === p
+                      ? (p === "all" ? "#374151" : POS_COLOR[p])
+                      : "#0a162865",
+                    border: `1px solid ${position === p
+                      ? (p === "all" ? "#37415155" : POS_COLOR[p] + "55")
+                      : "#1e3a8a35"
+                    }`,
+                    color: position === p ? "#fff" : "#94a3b8",
+                  }}
                 >
                   {p === "all" ? "Todas" : p}
                 </button>
@@ -600,7 +789,7 @@ export default function PlayerChart({
         </div>
       </div>
 
-      {/* ── Radar + Tabela lado a lado ──────────────────────────── */}
+      {/* ── Radar + Tabela lado a lado ──────────────────────────────── */}
       <div className="flex gap-4 items-start">
 
         {/* Radar (esquerda) */}
@@ -609,7 +798,10 @@ export default function PlayerChart({
           border: "1px solid #1e3a8a28",
           borderRadius: 16,
           padding: "16px 16px 12px",
+          boxShadow: "0 0 80px #0ea5e906 inset, 0 0 40px #a855f703 inset",
         }} className="flex-1 min-w-0">
+
+          {/* KPI legend */}
           <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "4px 20px", marginBottom: 12 }}>
             {kpis.map((k, ki) => (
               <span key={String(k)} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12 }}>
@@ -617,25 +809,47 @@ export default function PlayerChart({
                   <line x1="0" y1="4" x2="20" y2="4"
                     stroke={KPI_COLORS[ki]} strokeWidth="2" strokeOpacity="0.9" />
                 </svg>
+                <span style={{ color: KPI_COLORS[ki], fontWeight: 600 }}>
+                  {KPI_BADGES[ki]}{" "}
+                </span>
                 <span style={{ color: "#e2e8f0" }}>
-                  {ki + 1}. {ALL_KPI_DEFS.find((d) => d.key === k)?.label}
+                  {ALL_KPI_DEFS.find((d) => d.key === k)?.label}
                 </span>
               </span>
             ))}
+
+            {/* Ref vertex legend */}
+            {[
+              { label: "Média Geral", color: REF_MEDIA  },
+              { label: "Máximo",      color: REF_MAXIMO },
+              { label: "Mínimo",      color: REF_MINIMO },
+            ].map((rv) => (
+              <span key={rv.label} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11 }}>
+                <span style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: rv.color, opacity: 0.8, flexShrink: 0 }} />
+                <span style={{ color: rv.color, opacity: 0.85 }}>{rv.label}</span>
+              </span>
+            ))}
+
             <span style={{ fontSize: 10, color: "#3a5a7a", marginLeft: "auto" }}>
               % norm. pelo máx total
             </span>
           </div>
-          <RadarChart players={chartPlayers} kpis={kpis} uMax={uMax} />
+
+          <RadarChart
+            players={chartPlayers}
+            kpis={kpis}
+            uMax={uMax}
+            refVertices={refVertices}
+          />
         </div>
 
         {/* Tabela (direita) */}
         <div className="w-[420px] shrink-0 self-stretch">
-          <StatsTable players={chartPlayers} kpis={kpis} />
+          <StatsTable players={chartPlayers} kpis={kpis} refVertices={refVertices} />
         </div>
       </div>
 
-      {/* ── Position legend ───────────────────────────────────────── */}
+      {/* ── Position legend ───────────────────────────────────────────── */}
       <div style={{ display: "flex", gap: 20, fontSize: 12, flexWrap: "wrap" }}>
         {Object.entries(POS_COLOR).map(([p, c]) => (
           <span key={p} style={{ display: "flex", alignItems: "center", gap: 6 }}>
@@ -643,9 +857,20 @@ export default function PlayerChart({
             <span style={{ color: "#4a6890" }}>{p} · {POS_LABEL[p]}</span>
           </span>
         ))}
+        {/* Ref vertex mini-legend */}
+        {[
+          { label: "Média Geral", color: REF_MEDIA  },
+          { label: "Máximo",      color: REF_MAXIMO },
+          { label: "Mínimo",      color: REF_MINIMO },
+        ].map((rv) => (
+          <span key={rv.label} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <span style={{ width: 12, height: 12, borderRadius: "50%", flexShrink: 0, backgroundColor: rv.color, opacity: 0.7 }} />
+            <span style={{ color: "#4a6890" }}>{rv.label}</span>
+          </span>
+        ))}
       </div>
 
-      {/* ── Rodapé ───────────────────────────────────────────────── */}
+      {/* ── Rodapé ───────────────────────────────────────────────────── */}
       <p style={{ fontSize: 10, color: "#4a6890", marginTop: 4 }}>
         Fonte: fifa.com
         {lastUpdated && <> · Extração: {fmtDate(lastUpdated)}</>}
