@@ -150,8 +150,8 @@ const PAD_B    = 20;
 const CX_L     = PAD_L + BAR_W;          // 290 — right edge of left bars
 const CX_R     = CX_L + LABEL_W;         // 530 — left edge of right bars
 const LBL_CX   = (CX_L + CX_R) / 2;     // 410 — center of label column
-const ROW_H    = 22;
-const CAT_H    = 28;
+const ROW_H    = 16;
+const CAT_H    = 20;
 
 // Total SVG height
 const N_CATS   = KPI_CATEGORIES.length;
@@ -386,7 +386,7 @@ export default function DuelChart({
           const rowY = y;
           y += ROW_H;
 
-          const barH      = 10;
+          const barH      = 6;
           const barYOff   = (ROW_H - barH) / 2;
           const textY     = rowY + ROW_H * 0.66;
 
@@ -454,11 +454,11 @@ export default function DuelChart({
               {/* Winner dot */}
               {win1 && bw1 > 8 && (
                 <circle cx={CX_L - bw1} cy={rowY + barYOff + barH / 2}
-                  r={2.5} fill="#0ea5e9" opacity="0.7" />
+                  r={2} fill="#0ea5e9" opacity="0.7" />
               )}
               {win2 && bw2 > 8 && (
                 <circle cx={CX_R + bw2} cy={rowY + barYOff + barH / 2}
-                  r={2.5} fill="#f472b6" opacity="0.7" />
+                  r={2} fill="#f472b6" opacity="0.7" />
               )}
             </g>
           );
