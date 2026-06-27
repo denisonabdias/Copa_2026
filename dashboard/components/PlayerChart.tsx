@@ -132,9 +132,10 @@ const KPI_GLOWS  = ["#0ea5e930", "#a855f730", "#10b98130"] as const;
 const KPI_BADGES = ["①", "②", "③"] as const;
 
 /* Reference vertex palette */
-const REF_MEDIA  = "#94a3b8";
-const REF_MAXIMO = "#fbbf24";
-const REF_MINIMO = "#6366f1";
+const REF_MEDIA   = "#94a3b8";
+const REF_CLUSTER = "#0ea5e9";
+const REF_MAXIMO  = "#fbbf24";
+const REF_MINIMO  = "#6366f1";
 
 const POS_COLOR: Record<string, string> = {
   FW: "#f97316", MF: "#3b82f6", DF: "#10b981", GK: "#a855f7",
@@ -557,33 +558,6 @@ export default function PlayerChart({
     return r;
   }, [jogadores]);
 
-  /* ── Reference vertices: computed from full jogadores base ──────── */
-
-  const refVertices = useMemo<RefVertex[]>(() => {
-    const keyList = ALL_KPI_DEFS.map((d) => d.key);
-
-    function agg(fn: (vals: number[]) => number): Record<KpiKey, number> {
-      return Object.fromEntries(
-        keyList.map((key) => {
-          const vals = jogadores.map((j) => Number(j[key]) || 0);
-          return [key, fn(vals)];
-        })
-      ) as Record<KpiKey, number>;
-    }
-
-    const mediaValues = agg((vals) =>
-      vals.length > 0 ? vals.reduce((a, b) => a + b, 0) / vals.length : 0
-    );
-    const maxValues = agg((vals) => Math.max(...vals, 0));
-    const minValues = agg((vals) => Math.min(...vals.filter((v) => v > 0), 0));
-
-    return [
-      { label: "Média Geral", color: REF_MEDIA,  values: mediaValues },
-      { label: "Máximo",      color: REF_MAXIMO, values: maxValues   },
-      { label: "Mínimo",      color: REF_MINIMO, values: minValues   },
-    ];
-  }, [jogadores]);
-
   /* ── Filtered + pinned players ──────────────────────────────────── */
 
   const countries = useMemo(
@@ -618,6 +592,50 @@ export default function PlayerChart({
       .slice(0, 10)
       .sort((a, b) => (Number(b[primaryKpi]) || 0) - (Number(a[primaryKpi]) || 0));
   }, [pinned, filtered, primaryKpi]);
+
+  /* ── Reference vertices ────────────────────────────────────────── */
+
+  const refVertices = useMemo<RefVertex[]>(() => {
+    const keyList = ALL_KPI_DEFS.map((d) => d.key);
+
+    function aggFrom(
+      source: JogadorCompleto[],
+      fn: (vals: number[]) => number,
+    ): Record<KpiKey, number> {
+      return Object.fromEntries(
+        keyList.map((key) => {
+          const vals = source.map((j) => Number(j[key]) || 0);
+          return [key, fn(vals)];
+        })
+      ) as Record<KpiKey, number>;
+    }
+
+    const avg  = (vals: number[]) =>
+      vals.length > 0 ? vals.reduce((a, b) => a + b, 0) / vals.length : 0;
+
+    return [
+      {
+        label:  "Média Geral",
+        color:  REF_MEDIA,
+        values: aggFrom(jogadores, avg),
+      },
+      {
+        label:  "Média do Cluster",
+        color:  REF_CLUSTER,
+        values: aggFrom(chartPlayers.length > 0 ? chartPlayers : jogadores, avg),
+      },
+      {
+        label:  "Máximo",
+        color:  REF_MAXIMO,
+        values: aggFrom(jogadores, (vals) => Math.max(...vals, 0)),
+      },
+      {
+        label:  "Mínimo",
+        color:  REF_MINIMO,
+        values: aggFrom(jogadores, (vals) => Math.min(...vals.filter((v) => v > 0), 0)),
+      },
+    ];
+  }, [jogadores, chartPlayers]);
 
   function toggleKpi(key: KpiKey) {
     if (kpis.includes(key)) {
@@ -820,9 +838,10 @@ export default function PlayerChart({
 
             {/* Ref vertex legend */}
             {[
-              { label: "Média Geral", color: REF_MEDIA  },
-              { label: "Máximo",      color: REF_MAXIMO },
-              { label: "Mínimo",      color: REF_MINIMO },
+              { label: "Média Geral",       color: REF_MEDIA   },
+              { label: "Média do Cluster",  color: REF_CLUSTER },
+              { label: "Máximo",            color: REF_MAXIMO  },
+              { label: "Mínimo",            color: REF_MINIMO  },
             ].map((rv) => (
               <span key={rv.label} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11 }}>
                 <span style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: rv.color, opacity: 0.8, flexShrink: 0 }} />
@@ -859,9 +878,10 @@ export default function PlayerChart({
         ))}
         {/* Ref vertex mini-legend */}
         {[
-          { label: "Média Geral", color: REF_MEDIA  },
-          { label: "Máximo",      color: REF_MAXIMO },
-          { label: "Mínimo",      color: REF_MINIMO },
+          { label: "Média Geral",      color: REF_MEDIA   },
+          { label: "Média do Cluster", color: REF_CLUSTER },
+          { label: "Máximo",           color: REF_MAXIMO  },
+          { label: "Mínimo",           color: REF_MINIMO  },
         ].map((rv) => (
           <span key={rv.label} style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <span style={{ width: 12, height: 12, borderRadius: "50%", flexShrink: 0, backgroundColor: rv.color, opacity: 0.7 }} />
