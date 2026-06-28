@@ -126,6 +126,102 @@ const KPI_CATEGORIES: KpiCategory[] = [
 
 const ALL_KPI_DEFS: KpiDef[] = KPI_CATEGORIES.flatMap((c) => c.kpis);
 
+/* ── Modal sections (all 48 KPIs) ───────────────────────────────────── */
+
+type ModalKpi = { key: keyof JogadorCompleto; label: string };
+type ModalSection = { cat: string; color: string; kpis: ModalKpi[] };
+
+const MODAL_SECTIONS: ModalSection[] = [
+  {
+    cat: "Artilharia", color: "#f97316",
+    kpis: [
+      { key: "gols",                    label: "Gols" },
+      { key: "assistencias_artilharia", label: "Assistências" },
+      { key: "minutos_jogados",         label: "Minutos Jogados" },
+    ],
+  },
+  {
+    cat: "Ataque", color: "#3b82f6",
+    kpis: [
+      { key: "finalizacoes_certas",         label: "Fin. Certas" },
+      { key: "finalizacoes",                label: "Finalizações" },
+      { key: "finalizacoes_convertidas_pct",label: "Conv. (%)" },
+      { key: "assistencias_ataque",         label: "Assist. (Ataque)" },
+      { key: "chutes_na_area",              label: "Chutes na Área" },
+      { key: "chutes_fora_area",            label: "Chutes Fora Área" },
+      { key: "cabeceos_a_gol",              label: "Cabeceios a Gol" },
+      { key: "ge",                          label: "Grandes Esperanças" },
+      { key: "eficiencia_ge",               label: "Eficiência GE" },
+      { key: "escanteios",                  label: "Escanteios" },
+    ],
+  },
+  {
+    cat: "Defesa", color: "#10b981",
+    kpis: [
+      { key: "perdas_bola_forcadas",        label: "Perdas de Bola" },
+      { key: "pressoes_defensivas",         label: "Pressões Defensivas" },
+      { key: "pressoes_defensivas_diretas", label: "Pressões Diretas" },
+      { key: "gols_contra",                 label: "Gols Contra" },
+    ],
+  },
+  {
+    cat: "Distribuição", color: "#0ea5e9",
+    kpis: [
+      { key: "passes",                       label: "Passes" },
+      { key: "precisao_passes_pct",          label: "Precisão Passes (%)" },
+      { key: "cruzamentos",                  label: "Cruzamentos" },
+      { key: "precisao_cruzamentos_pct",     label: "Precisão Cruzam. (%)" },
+      { key: "tentativas_ruptura_linha",     label: "Ruptura Linha Def." },
+      { key: "precisao_ruptura_linha_pct",   label: "Precisão Ruptura (%)" },
+      { key: "tentativas_mudanca_direcao",   label: "Mudança de Direção" },
+      { key: "precisao_mudanca_direcao_pct", label: "Precisão Mud. Dir. (%)" },
+    ],
+  },
+  {
+    cat: "Disciplina", color: "#f59e0b",
+    kpis: [
+      { key: "faltas_cometidas",            label: "Faltas Cometidas" },
+      { key: "faltas_sofridas",             label: "Faltas Sofridas" },
+      { key: "cartoes_amarelos",            label: "Cartões Amarelos" },
+      { key: "cartoes_vermelhos",           label: "Cartões Vermelhos" },
+      { key: "cartoes_vermelhos_indiretos", label: "V. Vermelhos Ind." },
+      { key: "impedimentos",                label: "Impedimentos" },
+    ],
+  },
+  {
+    cat: "Físico", color: "#ec4899",
+    kpis: [
+      { key: "velocidade_media",          label: "Veloc. Média (km/h)" },
+      { key: "corridas_alta_velocidade",  label: "Corridas Alta Vel." },
+      { key: "arrancadas",                label: "Arrancadas" },
+      { key: "distancia_total",           label: "Distância Total (m)" },
+    ],
+  },
+  {
+    cat: "Goleiro", color: "#a855f7",
+    kpis: [
+      { key: "defesas_goleiro",           label: "Defesas" },
+      { key: "acoes_goleiro_dentro_area", label: "Ações Dentro Área" },
+      { key: "acoes_goleiro_fora_area",   label: "Ações Fora da Área" },
+    ],
+  },
+  {
+    cat: "Movimentação", color: "#06b6d4",
+    kpis: [
+      { key: "pedidos_bola",                    label: "Pedidos de Bola" },
+      { key: "pedidos_frente",                  label: "Pedidos na Frente" },
+      { key: "pedidos_entre",                   label: "Pedidos Entre Linhas" },
+      { key: "pedidos_atras",                   label: "Pedidos Atrás" },
+      { key: "pedidos_dentro_forma_coletiva",   label: "Ped. Dentro Forma" },
+      { key: "pedidos_fora_forma_coletiva",     label: "Ped. Fora Forma" },
+      { key: "recepcoes_atras",                 label: "Recep. Atrás" },
+      { key: "recepcoes_entre_linhas",          label: "Recep. Entre Linhas" },
+      { key: "recepcoes_sob_pressao",           label: "Recep. Sob Pressão" },
+      { key: "participacoes",                   label: "Participações" },
+    ],
+  },
+];
+
 /* Slot-based palette (matches TeamChart) */
 const KPI_COLORS = ["#0ea5e9", "#a855f7", "#10b981"] as const;
 const KPI_GLOWS  = ["#0ea5e930", "#a855f730", "#10b98130"] as const;
@@ -532,12 +628,13 @@ function PlayerMultiSelect({
 /* ── Radar Chart ─────────────────────────────────────────────────────── */
 
 function RadarChart({
-  players, kpis, uMax, refVertices,
+  players, kpis, uMax, refVertices, onPlayerClick,
 }: {
-  players:     JogadorCompleto[];
-  kpis:        KpiKey[];
-  uMax:        Record<KpiKey, number>;
-  refVertices: RefVertex[];
+  players:        JogadorCompleto[];
+  kpis:           KpiKey[];
+  uMax:           Record<KpiKey, number>;
+  refVertices:    RefVertex[];
+  onPlayerClick?: (j: JogadorCompleto) => void;
 }) {
   const N     = players.length;
   const TOTAL = N + refVertices.length;
@@ -662,7 +759,7 @@ function RadarChart({
         const vy     = sinA < -0.4 ? -14 : sinA > 0.4 ? 6 : -5;
         const dot    = rPoint(i, TOTAL, 1);
         return (
-          <g key={j.id}>
+          <g key={j.id} onClick={() => onPlayerClick?.(j)} style={{ cursor: "pointer" }}>
             <circle cx={dot.x.toFixed(1)} cy={dot.y.toFixed(1)} r="3" fill="#2d4a7a" />
             <text x={lx.toFixed(1)} y={(ly + vy).toFixed(1)}
               textAnchor={anchor} fill="#f3f4f6" fontSize="11" fontWeight="600">
@@ -711,11 +808,12 @@ function RadarChart({
 /* ── Stats Table ─────────────────────────────────────────────────────── */
 
 function StatsTable({
-  players, kpis, refVertices,
+  players, kpis, refVertices, onPlayerClick,
 }: {
-  players:     JogadorCompleto[];
-  kpis:        KpiKey[];
-  refVertices: RefVertex[];
+  players:        JogadorCompleto[];
+  kpis:           KpiKey[];
+  refVertices:    RefVertex[];
+  onPlayerClick?: (j: JogadorCompleto) => void;
 }) {
   if (players.length === 0) return null;
   return (
@@ -738,7 +836,11 @@ function StatsTable({
         <tbody>
           {/* Player rows */}
           {players.map((j, idx) => (
-            <tr key={j.id} style={{ borderBottom: "1px solid #0a162880" }} className="hover:bg-[#060f2660] transition-colors">
+            <tr key={j.id}
+              style={{ borderBottom: "1px solid #0a162880", cursor: onPlayerClick ? "pointer" : "default" }}
+              className="hover:bg-[#060f2660] transition-colors"
+              onClick={() => onPlayerClick?.(j)}
+              title="Clique para ver todos os KPIs">
               <td className="px-3 py-2" style={{ color: "#2d4a7a" }}>{idx + 1}</td>
               <td className="px-3 py-2 font-medium text-white">{j.nome}</td>
               <td className="px-3 py-2" style={{ color: "#94a3b8" }}>{j.pais}</td>
@@ -797,6 +899,144 @@ function StatsTable({
   );
 }
 
+/* ── Player Modal ────────────────────────────────────────────────────── */
+
+function fmtKpi(val: unknown): string {
+  const n = Number(val);
+  if (isNaN(n)) return "—";
+  if (n === 0) return "0";
+  return Number.isInteger(n) ? String(n) : n.toFixed(1);
+}
+
+function PlayerModal({
+  player,
+  onClose,
+}: {
+  player:  JogadorCompleto;
+  onClose: () => void;
+}) {
+  useEffect(() => {
+    const fn = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", fn);
+    return () => document.removeEventListener("keydown", fn);
+  }, [onClose]);
+
+  const posColor = POS_COLOR[player.posicao_campo] ?? "#6b7280";
+  const flag     = flagUrl(player.pais);
+  const country  = COUNTRY_MAP[player.pais];
+
+  return (
+    <div
+      style={{
+        position: "fixed", inset: 0, zIndex: 50,
+        background: "rgba(1,4,16,0.88)", backdropFilter: "blur(6px)",
+        display: "flex", alignItems: "center", justifyContent: "center", padding: 16,
+      }}
+      onClick={onClose}
+    >
+      <div
+        style={{
+          background: "linear-gradient(160deg,#030812 0%,#060f26 50%,#02060f 100%)",
+          border: "1px solid #1e3a8a55",
+          borderRadius: 20,
+          boxShadow: "0 0 80px #0ea5e910, 0 24px 64px #000e",
+          width: "100%", maxWidth: 740,
+          maxHeight: "90vh",
+          display: "flex", flexDirection: "column",
+          overflow: "hidden",
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div style={{
+          padding: "20px 24px 16px",
+          borderBottom: "1px solid #1e3a8a30",
+          display: "flex", alignItems: "flex-start", gap: 14,
+          background: "linear-gradient(90deg,#050d2e88 0%,#02060f00 100%)",
+        }}>
+          {flag && (
+            <img src={flag} alt={player.pais} width={36} height={25}
+              style={{ borderRadius: 4, marginTop: 5, flexShrink: 0, border: "1px solid #1e3a8a44" }} />
+          )}
+          <div style={{ flex: 1 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+              <h2 style={{ fontSize: 22, fontWeight: 800, color: "#f0f4ff", margin: 0, letterSpacing: "-0.02em" }}>
+                {player.nome}
+              </h2>
+              <span style={{
+                padding: "2px 10px", borderRadius: 99, fontSize: 11, fontWeight: 700,
+                background: posColor + "22", border: `1px solid ${posColor}55`, color: posColor,
+              }}>
+                {player.posicao_campo} · {POS_LABEL[player.posicao_campo]}
+              </span>
+            </div>
+            <p style={{ fontSize: 12, color: "#4a6890", marginTop: 5, marginBottom: 0 }}>
+              {country?.name ?? player.pais}
+              <span style={{ color: "#2d4a7a", margin: "0 8px" }}>·</span>
+              Ranking <span style={{ color: "#7090c0", fontWeight: 600 }}>#{player.ranking}</span>
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            style={{ background: "none", border: "none", cursor: "pointer", color: "#3a5a7a", padding: 6, flexShrink: 0, marginTop: -4 }}
+          >
+            <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Body — scrollable */}
+        <div style={{ overflowY: "auto", padding: "20px 24px 28px", flex: 1 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 22 }}>
+            {MODAL_SECTIONS.map(({ cat, color, kpis }) => (
+              <div key={cat}>
+                {/* Category header */}
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+                  <span style={{ width: 3, height: 14, borderRadius: 2, background: color, flexShrink: 0 }} />
+                  <span style={{ fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color, fontWeight: 700 }}>
+                    {cat}
+                  </span>
+                </div>
+                {/* KPI grid — 3 columns */}
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: "5px 8px" }}>
+                  {kpis.map(({ key, label }) => {
+                    const raw = player[key];
+                    const val = fmtKpi(raw);
+                    const isZero = val === "0";
+                    return (
+                      <div key={String(key)} style={{
+                        display: "flex", justifyContent: "space-between", alignItems: "baseline",
+                        gap: 6, padding: "6px 10px",
+                        background: "#0a162855",
+                        borderRadius: 8,
+                        border: `1px solid ${isZero ? "#1e3a8a18" : "#1e3a8a28"}`,
+                      }}>
+                        <span style={{
+                          fontSize: 10, color: isZero ? "#2d4a7a" : "#6b8fc4",
+                          flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                        }}>
+                          {label}
+                        </span>
+                        <span style={{
+                          fontSize: 13, fontWeight: 700, fontFamily: "monospace",
+                          color: isZero ? "#2d4a7a" : color, flexShrink: 0,
+                        }}>
+                          {val}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ── Main component ───────────────────────────────────────────────────── */
 
 export default function PlayerChart({
@@ -806,10 +1046,11 @@ export default function PlayerChart({
   jogadores:   JogadorCompleto[];
   lastUpdated: string | null;
 }) {
-  const [kpis,      setKpis]      = useState<KpiKey[]>(["gols"]);
-  const [position,  setPosition]  = useState<string>("all");
-  const [teams,     setTeams]     = useState<string[]>([]);
-  const [pinnedIds, setPinnedIds] = useState<number[]>([]);
+  const [kpis,        setKpis]        = useState<KpiKey[]>(["gols"]);
+  const [position,    setPosition]    = useState<string>("all");
+  const [teams,       setTeams]       = useState<string[]>([]);
+  const [pinnedIds,   setPinnedIds]   = useState<number[]>([]);
+  const [modalPlayer, setModalPlayer] = useState<JogadorCompleto | null>(null);
 
   /* ── Universe stats (full base) ─────────────────────────────────── */
 
@@ -1110,12 +1351,13 @@ export default function PlayerChart({
             kpis={kpis}
             uMax={uMax}
             refVertices={refVertices}
+            onPlayerClick={setModalPlayer}
           />
         </div>
 
         {/* Tabela (direita) */}
         <div className="w-[420px] shrink-0 self-stretch">
-          <StatsTable players={chartPlayers} kpis={kpis} refVertices={refVertices} />
+          <StatsTable players={chartPlayers} kpis={kpis} refVertices={refVertices} onPlayerClick={setModalPlayer} />
         </div>
       </div>
 
@@ -1145,6 +1387,11 @@ export default function PlayerChart({
       <p style={{ fontSize: 10, color: "#4a6890", marginTop: 4 }}>
         Fonte: fifa.com{lastUpdated && <> · Extração: {fmtDate(lastUpdated)}</>}
       </p>
+
+      {/* ── Modal detalhe jogador ────────────────────────────────────── */}
+      {modalPlayer && (
+        <PlayerModal player={modalPlayer} onClose={() => setModalPlayer(null)} />
+      )}
     </div>
   );
 }
