@@ -753,12 +753,7 @@ export default function TeamChart({
 
       {/* ── Footer ────────────────────────────────────────────────────── */}
       <p style={{ fontSize: 10, color: "#4a6890", paddingLeft: 4 }}>
-        Copa do Mundo 2026 · Analytics Performance ·{" "}
-        <a href="https://github.com/denisonabdias/Copa_2026" target="_blank" rel="noopener noreferrer"
-          style={{ color: "#0ea5e9" }}>
-          GitHub: denisonabdias/Copa_2026
-        </a>
-        {lastUpdated && <> · Extração: {fmtDate(lastUpdated)}</>}
+        Fonte: fifa.com{lastUpdated && <> · Extração: {fmtDate(lastUpdated)}</>}
       </p>
     </div>
   );

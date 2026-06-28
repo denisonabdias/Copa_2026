@@ -55,8 +55,12 @@ export default function Home() {
       </Suspense>
 
       {/* ── Rodapé ─────────────────────────────────────────────────── */}
-      <footer className="mt-12 text-center text-xs text-gray-600">
-        Fonte: fifa.com · Projeto de portfólio · Dados atualizados via scraper Python
+      <footer className="mt-12 text-center text-xs" style={{ color: "#4a6890" }}>
+        Copa do Mundo 2026 · Analytics Performance ·{" "}
+        <a href="https://github.com/denisonabdias/Copa_2026" target="_blank" rel="noopener noreferrer"
+          style={{ color: "#0ea5e9" }}>
+          GitHub: denisonabdias/Copa_2026
+        </a>
       </footer>
     </div>
   );
