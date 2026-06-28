@@ -1,6 +1,31 @@
 # Status Atual — Copa 2026 Dashboard
 
-_Atualizado: 2026-06-28_
+_Atualizado: 2026-06-28 (sessão 2)_
+
+---
+
+## O que foi consolidado (sessão 2026-06-28 sessão 2)
+
+### `2a346a3` — Multi-select jogadores/seleções + rodapé atualizado
+
+**PlayerChart.tsx** — filtro de jogador reformulado:
+
+- Busca por texto (`input`) substituída por **`PlayerMultiSelect`** (dropdown com checkboxes)
+- A lista do dropdown é **pré-filtrada** pelos botões de Posição e pelo filtro de Seleção ativos
+- Jogadores selecionados ficam fixados no radar (lógica `pinnedIds: number[]` em vez de `nameSearch: string`)
+- Header do dropdown exibe contagem de disponíveis e fixados; botão "Limpar" quando há seleção
+- Cada item mostra: nome completo · badge de posição colorido · país
+
+**TeamChart.tsx** — seletor de destaque reformulado:
+
+- `<select>` único substituído por **`TeamHighlightMultiSelect`** (dropdown com checkboxes)
+- Botão **"Marcar todas"** / **"Desmarcar todas"** no header (toggle inteligente)
+- Botão "Limpar" aparece quando há seleção parcial
+- `highlights: string[]` em vez de `search: string`; `BubbleChart` atualizado (`highlights.includes(t.pais)`)
+- Contador "N destacadas" no rodapé do filtro
+
+**DuelChart.tsx + TeamChart.tsx + PlayerChart.tsx** — rodapé:
+- Texto alterado para: `Copa do Mundo 2026 · Analytics Performance · GitHub: denisonabdias/Copa_2026` (link clicável)
 
 ---
 
@@ -154,3 +179,4 @@ Candidatos naturais caso haja demanda:
 3. **Compartilhamento de estado via URL** — encode dos KPIs e filtros selecionados na querystring
 4. **Filtro por fase/grupo** no painel Jogadores — ex.: só seleções que chegaram às semifinais
 5. **Conectar GitHub auto-deploy ao projeto `dashboard`** — eliminar a necessidade de rodar `vercel --prod` manualmente a cada push
+6. **Ordenação da tabela** no painel Jogadores — clicar em cabeçalho de KPI ordena a tabela por aquela coluna
