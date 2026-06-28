@@ -267,6 +267,116 @@ function TeamMultiSelect({
   );
 }
 
+/* ── PlayerMultiSelect ───────────────────────────────────────────────── */
+
+function PlayerMultiSelect({
+  players,
+  allPlayers,
+  selected,
+  onChange,
+}: {
+  players:    JogadorCompleto[];
+  allPlayers: JogadorCompleto[];
+  selected:   number[];
+  onChange:   (v: number[]) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function onOut(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", onOut);
+    return () => document.removeEventListener("mousedown", onOut);
+  }, []);
+
+  function toggle(id: number) {
+    onChange(selected.includes(id) ? selected.filter((x) => x !== id) : [...selected, id]);
+  }
+
+  const nameMap = useMemo(
+    () => new Map(allPlayers.map((j) => [j.id, j])),
+    [allPlayers],
+  );
+
+  const label =
+    selected.length === 0
+      ? "Nenhum fixado"
+      : selected.length <= 2
+        ? selected.map((id) => lastName(nameMap.get(id)?.nome ?? "?")).join(", ")
+        : `${selected.slice(0, 2).map((id) => lastName(nameMap.get(id)?.nome ?? "?")).join(", ")} +${selected.length - 2}`;
+
+  return (
+    <div ref={ref} style={{ position: "relative" }}>
+      <p style={{ fontSize: 9, letterSpacing: "0.09em", textTransform: "uppercase", color: "#4a6890", marginBottom: 6 }}>
+        Jogadores <span style={{ color: "#10b981", textTransform: "none", letterSpacing: "normal" }}>(fixa no radar)</span>
+      </p>
+      <button
+        onClick={() => setOpen((o) => !o)}
+        style={{
+          display: "flex", alignItems: "center", gap: 8,
+          background: "#050d2e", border: "1px solid #1e3a8a55",
+          borderRadius: 9, padding: "6px 12px", fontSize: 12,
+          color: selected.length > 0 ? "#94a3b8" : "#4a6890",
+          minWidth: 220, maxWidth: 340, cursor: "pointer", outline: "none",
+        }}
+      >
+        <span style={{ flex: 1, textAlign: "left", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{label}</span>
+        <svg style={{ width: 12, height: 12, flexShrink: 0, transition: "transform 0.15s", transform: open ? "rotate(180deg)" : "none" }}
+          fill="none" stroke="#3a5a8a" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+
+      {open && (
+        <div style={{
+          position: "absolute", zIndex: 30, marginTop: 4, width: 300,
+          background: "#050d2e", border: "1px solid #1e3a8a55",
+          borderRadius: 9, boxShadow: "0 8px 32px #000a", overflow: "hidden",
+        }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 12px", borderBottom: "1px solid #1e3a8a30" }}>
+            <span style={{ fontSize: 11, color: "#4a6890" }}>
+              {players.length} disponíveis{selected.length > 0 && ` · ${selected.length} fixados`}
+            </span>
+            {selected.length > 0 && (
+              <button onClick={() => onChange([])}
+                style={{ fontSize: 11, color: "#10b981", background: "none", border: "none", cursor: "pointer" }}>
+                Limpar
+              </button>
+            )}
+          </div>
+          <div style={{ overflowY: "auto", maxHeight: 240, padding: "4px 0" }}>
+            {players.length === 0 ? (
+              <p style={{ padding: "12px 16px", fontSize: 11, color: "#4a6890" }}>
+                Nenhum jogador com esses filtros
+              </p>
+            ) : (
+              players.map((j) => (
+                <label key={j.id}
+                  style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 12px", cursor: "pointer" }}
+                  className="hover:bg-[#0a162880]">
+                  <input type="checkbox" checked={selected.includes(j.id)} onChange={() => toggle(j.id)}
+                    className="accent-emerald-500 w-3 h-3 shrink-0" />
+                  <span style={{ fontSize: 11, color: "#e2e8f0", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {j.nome}
+                  </span>
+                  <span style={{ fontSize: 10, color: POS_COLOR[j.posicao_campo] ?? "#6b7280", flexShrink: 0 }}>
+                    {j.posicao_campo}
+                  </span>
+                  <span style={{ fontSize: 10, color: "#4a6890", flexShrink: 0 }}>
+                    {j.pais}
+                  </span>
+                </label>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ── Radar Chart ─────────────────────────────────────────────────────── */
 
 function RadarChart({
@@ -544,10 +654,10 @@ export default function PlayerChart({
   jogadores:   JogadorCompleto[];
   lastUpdated: string | null;
 }) {
-  const [kpis,       setKpis]       = useState<KpiKey[]>(["gols"]);
-  const [position,   setPosition]   = useState<string>("all");
-  const [teams,      setTeams]      = useState<string[]>([]);
-  const [nameSearch, setNameSearch] = useState<string>("");
+  const [kpis,      setKpis]      = useState<KpiKey[]>(["gols"]);
+  const [position,  setPosition]  = useState<string>("all");
+  const [teams,     setTeams]     = useState<string[]>([]);
+  const [pinnedIds, setPinnedIds] = useState<number[]>([]);
 
   /* ── Universe stats (full base) ─────────────────────────────────── */
 
@@ -568,10 +678,10 @@ export default function PlayerChart({
   const primaryKpi = kpis[0];
 
   const pinned = useMemo(() => {
-    if (!nameSearch.trim()) return [];
-    const q = nameSearch.toLowerCase();
-    return jogadores.filter((j) => j.nome.toLowerCase().includes(q)).slice(0, 10);
-  }, [jogadores, nameSearch]);
+    if (pinnedIds.length === 0) return [];
+    const idSet = new Set(pinnedIds);
+    return jogadores.filter((j) => idSet.has(j.id));
+  }, [jogadores, pinnedIds]);
 
   const filtered = useMemo(() => {
     return jogadores.filter(
@@ -776,24 +886,13 @@ export default function PlayerChart({
           {/* Team multi-select */}
           <TeamMultiSelect countries={countries} selected={teams} onChange={setTeams} />
 
-          {/* Name search */}
-          <div className="flex-1 min-w-[180px]">
-            <p style={{ fontSize: 9, letterSpacing: "0.09em", textTransform: "uppercase", color: "#4a6890", marginBottom: 6 }}>
-              Jogador <span style={{ color: "#10b981", textTransform: "none", letterSpacing: "normal" }}>(fixa no radar)</span>
-            </p>
-            <input
-              type="text"
-              placeholder="Buscar e fixar jogador…"
-              value={nameSearch}
-              onChange={(e) => setNameSearch(e.target.value)}
-              style={{
-                width: "100%", background: "#050d2e", border: "1px solid #1e3a8a55",
-                color: "#94a3b8", fontSize: 12, borderRadius: 9, padding: "6px 12px",
-                outline: "none",
-              }}
-              className="placeholder-[#3a5a7a]"
-            />
-          </div>
+          {/* Player multi-select */}
+          <PlayerMultiSelect
+            players={filtered}
+            allPlayers={jogadores}
+            selected={pinnedIds}
+            onChange={setPinnedIds}
+          />
 
           {/* Count */}
           <div style={{ fontSize: 12, color: "#4a6890", paddingBottom: 6 }}>
@@ -892,7 +991,11 @@ export default function PlayerChart({
 
       {/* ── Rodapé ───────────────────────────────────────────────────── */}
       <p style={{ fontSize: 10, color: "#4a6890", marginTop: 4 }}>
-        Fonte: fifa.com
+        Copa do Mundo 2026 · Analytics Performance ·{" "}
+        <a href="https://github.com/denisonabdias/Copa_2026" target="_blank" rel="noopener noreferrer"
+          style={{ color: "#0ea5e9" }}>
+          GitHub: denisonabdias/Copa_2026
+        </a>
         {lastUpdated && <> · Extração: {fmtDate(lastUpdated)}</>}
       </p>
     </div>

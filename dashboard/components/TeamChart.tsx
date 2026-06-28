@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import type { TimeStatCompleto } from "@/lib/supabase";
 
 /* ────────────────────────────────────────────────────────────────────────
@@ -197,17 +197,117 @@ function countryCode(s: string): string {
 }
 
 /* ────────────────────────────────────────────────────────────────────────
+   TeamHighlightMultiSelect
+   ──────────────────────────────────────────────────────────────────────── */
+
+function TeamHighlightMultiSelect({
+  countries, selected, onChange,
+}: {
+  countries: string[];
+  selected:  string[];
+  onChange:  (v: string[]) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function onOut(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", onOut);
+    return () => document.removeEventListener("mousedown", onOut);
+  }, []);
+
+  function toggle(c: string) {
+    onChange(selected.includes(c) ? selected.filter((x) => x !== c) : [...selected, c]);
+  }
+
+  const allSelected = selected.length === countries.length && countries.length > 0;
+
+  function toggleAll() {
+    onChange(allSelected ? [] : [...countries]);
+  }
+
+  const label =
+    selected.length === 0 ? "Nenhuma destacada"
+    : selected.length === countries.length ? "Todas destacadas"
+    : selected.length <= 2 ? selected.join(", ")
+    : `${selected.slice(0, 2).join(", ")} +${selected.length - 2}`;
+
+  return (
+    <div ref={ref} style={{ position: "relative" }}>
+      <p style={{ fontSize: 9, letterSpacing: "0.09em", textTransform: "uppercase", color: "#4a6890", marginBottom: 6 }}>
+        Seleção <span style={{ color: "#0ea5e9", textTransform: "none", letterSpacing: "normal" }}>(destaque no gráfico)</span>
+      </p>
+      <button
+        onClick={() => setOpen((o) => !o)}
+        style={{
+          display: "flex", alignItems: "center", gap: 8,
+          background: "#050d2e", border: "1px solid #1e3a8a55",
+          borderRadius: 9, padding: "6px 12px", fontSize: 12,
+          color: selected.length > 0 ? "#94a3b8" : "#4a6890",
+          minWidth: 220, maxWidth: 300, cursor: "pointer", outline: "none",
+        }}
+      >
+        <span style={{ flex: 1, textAlign: "left", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{label}</span>
+        <svg style={{ width: 12, height: 12, flexShrink: 0, transition: "transform 0.15s", transform: open ? "rotate(180deg)" : "none" }}
+          fill="none" stroke="#3a5a8a" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+
+      {open && (
+        <div style={{
+          position: "absolute", zIndex: 30, marginTop: 4, width: 240,
+          background: "#050d2e", border: "1px solid #1e3a8a55",
+          borderRadius: 9, boxShadow: "0 8px 32px #000a", overflow: "hidden",
+        }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 12px", borderBottom: "1px solid #1e3a8a30" }}>
+            <span style={{ fontSize: 11, color: "#4a6890" }}>
+              {selected.length === 0 ? "Nenhuma" : `${selected.length} destacadas`}
+            </span>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button onClick={toggleAll}
+                style={{ fontSize: 11, color: "#0ea5e9", background: "none", border: "none", cursor: "pointer" }}>
+                {allSelected ? "Desmarcar todas" : "Marcar todas"}
+              </button>
+              {selected.length > 0 && !allSelected && (
+                <button onClick={() => onChange([])}
+                  style={{ fontSize: 11, color: "#10b981", background: "none", border: "none", cursor: "pointer" }}>
+                  Limpar
+                </button>
+              )}
+            </div>
+          </div>
+          <div style={{ overflowY: "auto", maxHeight: 208, padding: "4px 0" }}>
+            {countries.map((c) => (
+              <label key={c}
+                style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 12px", cursor: "pointer" }}
+                className="hover:bg-[#0a162880]">
+                <input type="checkbox" checked={selected.includes(c)} onChange={() => toggle(c)}
+                  className="accent-emerald-500 w-3 h-3 shrink-0" />
+                <span style={{ fontSize: 11, color: "#94a3b8" }}>{c}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ────────────────────────────────────────────────────────────────────────
    Bubble Chart SVG
    ──────────────────────────────────────────────────────────────────────── */
 
 function BubbleChart({
-  teams, kpis, uMin, uMax, highlight,
+  teams, kpis, uMin, uMax, highlights,
 }: {
-  teams:     TimeStatCompleto[];
-  kpis:      KpiKey[];
-  uMin:      Record<KpiKey, number>;
-  uMax:      Record<KpiKey, number>;
-  highlight: string;
+  teams:      TimeStatCompleto[];
+  kpis:       KpiKey[];
+  uMin:       Record<KpiKey, number>;
+  uMax:       Record<KpiKey, number>;
+  highlights: string[];
 }) {
   const [xKey, yKey, sKey, cKey] = kpis as [KpiKey, KpiKey | undefined, KpiKey | undefined, KpiKey | undefined];
 
@@ -398,7 +498,7 @@ function BubbleChart({
       {([false, true] as boolean[]).flatMap((hiPass) =>
         teams
           .filter((t) => {
-            const isHi = highlight !== "" && t.pais === highlight;
+            const isHi = highlights.length > 0 && highlights.includes(t.pais);
             return isHi === hiPass;
           })
           .map((t) => {
@@ -415,7 +515,7 @@ function BubbleChart({
               ? tempColor(norm(Number(t[cKey]) || 0, cKey))
               : "#0ea5e9";
 
-            const isHi = highlight !== "" && t.pais === highlight;
+            const isHi = highlights.length > 0 && highlights.includes(t.pais);
             const code = countryCode(t.pais);
 
             /* label side: flip when near right/top edge */
@@ -479,8 +579,8 @@ export default function TeamChart({
   times:       TimeStatCompleto[];
   lastUpdated: string | null;
 }) {
-  const [kpis,   setKpis]   = useState<KpiKey[]>(["total_gols", "total_finalizacoes"]);
-  const [search, setSearch] = useState("");
+  const [kpis,       setKpis]       = useState<KpiKey[]>(["total_gols", "total_finalizacoes"]);
+  const [highlights, setHighlights] = useState<string[]>([]);
 
   /* Universe min/max: media_ uses real min for better axis spread */
   const uMax = useMemo(() => {
@@ -612,49 +712,24 @@ export default function TeamChart({
           ))}
         </div>
 
-        {/* Dropdown / highlight */}
+        {/* Highlight multi-select */}
         <div style={{
           marginTop: 16, paddingTop: 16,
           borderTop: "1px solid #1e3a8a22",
-          display: "flex", alignItems: "center", gap: 16,
+          display: "flex", alignItems: "flex-end", gap: 16, flexWrap: "wrap",
         }}>
-          <div>
-            <p style={{
-              fontSize: 9, letterSpacing: "0.09em",
-              textTransform: "uppercase", color: "#4a6890", marginBottom: 7,
-            }}>
-              Seleção{" "}
-              <span style={{ color: "#0ea5e9" }}>(destaque no gráfico)</span>
-            </p>
-            <select
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              style={{
-                background: "#050d2e",
-                border: "1px solid #1e3a8a55",
-                borderRadius: 9,
-                padding: "6px 32px 6px 13px",
-                fontSize: 12,
-                color: search ? "#94a3b8" : "#3a5a8a",
-                outline: "none",
-                width: 240,
-                cursor: "pointer",
-                appearance: "none",
-                backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%231e3a8a'/%3E%3C/svg%3E")`,
-                backgroundRepeat: "no-repeat",
-                backgroundPosition: "right 12px center",
-              }}
-            >
-              <option value="">— Todas as seleções —</option>
-              {[...times]
-                .sort((a, b) => a.pais.localeCompare(b.pais, "pt-BR"))
-                .map((t) => (
-                  <option key={t.pais} value={t.pais}>{t.pais}</option>
-                ))}
-            </select>
-          </div>
-          <div style={{ fontSize: 11, color: "#4a6890", paddingTop: 16 }}>
+          <TeamHighlightMultiSelect
+            countries={[...times].sort((a, b) => a.pais.localeCompare(b.pais, "pt-BR")).map((t) => t.pais)}
+            selected={highlights}
+            onChange={setHighlights}
+          />
+          <div style={{ fontSize: 11, color: "#4a6890", paddingBottom: 6 }}>
             <span style={{ color: "#7090c0", fontWeight: 600 }}>{times.length}</span> seleções
+            {highlights.length > 0 && (
+              <span style={{ color: "#0ea5e9", marginLeft: 6 }}>
+                · {highlights.length} destacada{highlights.length > 1 ? "s" : ""}
+              </span>
+            )}
           </div>
         </div>
       </div>
@@ -672,13 +747,17 @@ export default function TeamChart({
           kpis={kpis}
           uMin={uMin}
           uMax={uMax}
-          highlight={search}
+          highlights={highlights}
         />
       </div>
 
       {/* ── Footer ────────────────────────────────────────────────────── */}
       <p style={{ fontSize: 10, color: "#4a6890", paddingLeft: 4 }}>
-        Fonte: fifa.com
+        Copa do Mundo 2026 · Analytics Performance ·{" "}
+        <a href="https://github.com/denisonabdias/Copa_2026" target="_blank" rel="noopener noreferrer"
+          style={{ color: "#0ea5e9" }}>
+          GitHub: denisonabdias/Copa_2026
+        </a>
         {lastUpdated && <> · Extração: {fmtDate(lastUpdated)}</>}
       </p>
     </div>
