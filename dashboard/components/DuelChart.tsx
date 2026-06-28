@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import type { TimeStatCompleto } from "@/lib/supabase";
 
 /* ────────────────────────────────────────────────────────────────────────
@@ -175,22 +175,212 @@ function fmtDate(iso: string): string {
   });
 }
 
-function selectStyle(accentColor: string): React.CSSProperties {
-  return {
-    background: "#050d2e",
-    border: `1px solid ${accentColor}55`,
-    borderRadius: 9,
-    padding: "7px 34px 7px 13px",
-    fontSize: 12,
-    color: "#94a3b8",
-    outline: "none",
-    width: 240,
-    cursor: "pointer",
-    appearance: "none",
-    backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%231e3a8a'/%3E%3C/svg%3E")`,
-    backgroundRepeat: "no-repeat",
-    backgroundPosition: "right 12px center",
-  };
+/* ────────────────────────────────────────────────────────────────────────
+   Country metadata (FIFA codes → flag + name)
+   ──────────────────────────────────────────────────────────────────────── */
+
+const COUNTRY_MAP: Record<string, { name: string; iso2: string }> = {
+  ALG: { name: "Argélia",          iso2: "dz" },
+  ARG: { name: "Argentina",        iso2: "ar" },
+  AUS: { name: "Austrália",        iso2: "au" },
+  AUT: { name: "Áustria",          iso2: "at" },
+  BEL: { name: "Bélgica",          iso2: "be" },
+  BIH: { name: "Bósnia e Herz.",   iso2: "ba" },
+  BRA: { name: "Brasil",           iso2: "br" },
+  CAN: { name: "Canadá",           iso2: "ca" },
+  CHI: { name: "Chile",            iso2: "cl" },
+  CIV: { name: "Costa do Marfim",  iso2: "ci" },
+  CMR: { name: "Camarões",         iso2: "cm" },
+  COL: { name: "Colômbia",         iso2: "co" },
+  CPV: { name: "Cabo Verde",       iso2: "cv" },
+  CRC: { name: "Costa Rica",       iso2: "cr" },
+  CRO: { name: "Croácia",          iso2: "hr" },
+  CZE: { name: "Rep. Tcheca",      iso2: "cz" },
+  DEN: { name: "Dinamarca",        iso2: "dk" },
+  ECU: { name: "Equador",          iso2: "ec" },
+  EGY: { name: "Egito",            iso2: "eg" },
+  ENG: { name: "Inglaterra",       iso2: "gb-eng" },
+  ESP: { name: "Espanha",          iso2: "es" },
+  FRA: { name: "França",           iso2: "fr" },
+  GER: { name: "Alemanha",         iso2: "de" },
+  GHA: { name: "Gana",             iso2: "gh" },
+  IRN: { name: "Irã",              iso2: "ir" },
+  IRQ: { name: "Iraque",           iso2: "iq" },
+  ITA: { name: "Itália",           iso2: "it" },
+  JAM: { name: "Jamaica",          iso2: "jm" },
+  JOR: { name: "Jordânia",         iso2: "jo" },
+  JPN: { name: "Japão",            iso2: "jp" },
+  KOR: { name: "Coreia do Sul",    iso2: "kr" },
+  KSA: { name: "Arábia Saudita",   iso2: "sa" },
+  MAR: { name: "Marrocos",         iso2: "ma" },
+  MEX: { name: "México",           iso2: "mx" },
+  NAI: { name: "Namíbia",          iso2: "na" },
+  NAM: { name: "Namíbia",          iso2: "na" },
+  NED: { name: "Holanda",          iso2: "nl" },
+  NGA: { name: "Nigéria",          iso2: "ng" },
+  NOR: { name: "Noruega",          iso2: "no" },
+  NZL: { name: "Nova Zelândia",    iso2: "nz" },
+  PAN: { name: "Panamá",           iso2: "pa" },
+  PAR: { name: "Paraguai",         iso2: "py" },
+  POR: { name: "Portugal",         iso2: "pt" },
+  QAT: { name: "Catar",            iso2: "qa" },
+  RSA: { name: "África do Sul",    iso2: "za" },
+  SCO: { name: "Escócia",          iso2: "gb-sct" },
+  SEN: { name: "Senegal",          iso2: "sn" },
+  SRB: { name: "Sérvia",           iso2: "rs" },
+  SUI: { name: "Suíça",            iso2: "ch" },
+  SWE: { name: "Suécia",           iso2: "se" },
+  TUN: { name: "Tunísia",          iso2: "tn" },
+  TUR: { name: "Turquia",          iso2: "tr" },
+  UKR: { name: "Ucrânia",          iso2: "ua" },
+  URU: { name: "Uruguai",          iso2: "uy" },
+  USA: { name: "Estados Unidos",   iso2: "us" },
+  UZB: { name: "Uzbequistão",      iso2: "uz" },
+  VEN: { name: "Venezuela",        iso2: "ve" },
+};
+
+function flagUrl(code: string): string | null {
+  const iso2 = COUNTRY_MAP[code]?.iso2;
+  return iso2 ? `https://flagcdn.com/w20/${iso2}.png` : null;
+}
+
+/* ────────────────────────────────────────────────────────────────────────
+   TeamSelect — single-select dropdown with flag + name + search
+   ──────────────────────────────────────────────────────────────────────── */
+
+function TeamSelect({
+  teams,
+  value,
+  onChange,
+  accentColor,
+}: {
+  teams:       TimeStatCompleto[];
+  value:       string;
+  onChange:    (v: string) => void;
+  accentColor: string;
+}) {
+  const [open, setOpen]     = useState(false);
+  const [search, setSearch] = useState("");
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const fn = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", fn);
+    return () => document.removeEventListener("mousedown", fn);
+  }, []);
+
+  const filtered = useMemo(() => {
+    const q = search.toLowerCase();
+    return teams.filter((t) => {
+      const info = COUNTRY_MAP[t.pais];
+      return t.pais.toLowerCase().includes(q) || (info?.name ?? "").toLowerCase().includes(q);
+    });
+  }, [teams, search]);
+
+  const flag = value ? flagUrl(value) : null;
+  const info = value ? COUNTRY_MAP[value] : null;
+
+  return (
+    <div ref={ref} style={{ position: "relative", width: 260 }}>
+      <button
+        onClick={() => { setOpen((o) => !o); setSearch(""); }}
+        style={{
+          width: "100%", display: "flex", alignItems: "center", gap: 8,
+          background: "#050d2e", border: `1px solid ${accentColor}55`,
+          borderRadius: 9, padding: "7px 13px",
+          fontSize: 12, color: value ? "#e2e8f0" : "#4a6890",
+          cursor: "pointer", outline: "none",
+        }}
+      >
+        {flag && (
+          <img src={flag} alt={value} width={20} height={14}
+            style={{ borderRadius: 2, flexShrink: 0, objectFit: "cover" }} />
+        )}
+        {value ? (
+          <>
+            <span style={{ fontWeight: 700, color: accentColor, flexShrink: 0 }}>{value}</span>
+            {info?.name && (
+              <span style={{ color: "#6b8fc4", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                · {info.name}
+              </span>
+            )}
+          </>
+        ) : (
+          <span>— Escolha uma seleção —</span>
+        )}
+        <svg style={{ marginLeft: "auto", flexShrink: 0 }} width="10" height="6" viewBox="0 0 10 6">
+          <path d="M0 0l5 6 5-6z" fill="#1e3a8a" />
+        </svg>
+      </button>
+
+      {open && (
+        <div style={{
+          position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, zIndex: 30,
+          background: "#050d2e", border: `1px solid ${accentColor}33`,
+          borderRadius: 9, boxShadow: "0 8px 32px #000c", overflow: "hidden",
+        }}>
+          <div style={{ padding: "8px 10px", borderBottom: "1px solid #1e3a8a22" }}>
+            <input
+              autoFocus
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Buscar seleção..."
+              style={{
+                width: "100%", background: "#0a162888", border: "1px solid #1e3a8a44",
+                borderRadius: 6, padding: "5px 9px", fontSize: 11, color: "#e2e8f0", outline: "none",
+              }}
+            />
+          </div>
+          <div style={{ maxHeight: 240, overflowY: "auto" }}>
+            {value && (
+              <div
+                style={{ padding: "5px 12px", fontSize: 11, color: "#2d4a7a", cursor: "pointer" }}
+                className="hover:bg-[#0a162880]"
+                onClick={() => { onChange(""); setOpen(false); }}
+              >
+                — Nenhuma —
+              </div>
+            )}
+            {filtered.map((t) => {
+              const fl = flagUrl(t.pais);
+              const nm = COUNTRY_MAP[t.pais]?.name;
+              const isSel = t.pais === value;
+              return (
+                <div
+                  key={t.pais}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 7,
+                    padding: "5px 12px", cursor: "pointer",
+                    background: isSel ? `${accentColor}15` : "transparent",
+                  }}
+                  className="hover:bg-[#0a162880]"
+                  onClick={() => { onChange(t.pais); setOpen(false); }}
+                >
+                  {fl && (
+                    <img src={fl} alt={t.pais} width={20} height={14}
+                      style={{ borderRadius: 2, flexShrink: 0, objectFit: "cover" }} />
+                  )}
+                  <span style={{ fontSize: 11, fontWeight: 700, color: isSel ? accentColor : "#e2e8f0", flexShrink: 0 }}>
+                    {t.pais}
+                  </span>
+                  {nm && (
+                    <span style={{ fontSize: 10, color: "#4a6890", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {nm}
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+            {filtered.length === 0 && (
+              <div style={{ padding: "10px 12px", fontSize: 11, color: "#2d4a7a" }}>Nenhum resultado</div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 /* ────────────────────────────────────────────────────────────────────────
@@ -488,16 +678,12 @@ export default function DuelChart({
             }}>
               Seleção 1 — Esquerda (←)
             </p>
-            <select
+            <TeamSelect
+              teams={sortedTeams}
               value={t1}
-              onChange={(e) => setT1(e.target.value)}
-              style={selectStyle("#0ea5e9")}
-            >
-              <option value="">— Escolha uma seleção —</option>
-              {sortedTeams.map((t) => (
-                <option key={t.pais} value={t.pais}>{t.pais}</option>
-              ))}
-            </select>
+              onChange={setT1}
+              accentColor="#0ea5e9"
+            />
           </div>
 
           {/* VS divider */}
@@ -517,16 +703,12 @@ export default function DuelChart({
             }}>
               Seleção 2 — Direita (→)
             </p>
-            <select
+            <TeamSelect
+              teams={sortedTeams}
               value={t2}
-              onChange={(e) => setT2(e.target.value)}
-              style={selectStyle("#a855f7")}
-            >
-              <option value="">— Escolha uma seleção —</option>
-              {sortedTeams.map((t) => (
-                <option key={t.pais} value={t.pais}>{t.pais}</option>
-              ))}
-            </select>
+              onChange={setT2}
+              accentColor="#a855f7"
+            />
           </div>
 
           {/* Info */}
