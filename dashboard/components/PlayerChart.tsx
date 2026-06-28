@@ -144,6 +144,73 @@ const POS_LABEL: Record<string, string> = {
   FW: "Atacante", MF: "Meia", DF: "Defensor", GK: "Goleiro",
 };
 
+/* ── Country metadata ────────────────────────────────────────────────── */
+
+const COUNTRY_MAP: Record<string, { name: string; iso2: string }> = {
+  ALG: { name: "Argélia",          iso2: "dz" },
+  ARG: { name: "Argentina",        iso2: "ar" },
+  AUS: { name: "Austrália",        iso2: "au" },
+  AUT: { name: "Áustria",          iso2: "at" },
+  BEL: { name: "Bélgica",          iso2: "be" },
+  BIH: { name: "Bósnia e Herz.",   iso2: "ba" },
+  BRA: { name: "Brasil",           iso2: "br" },
+  CAN: { name: "Canadá",           iso2: "ca" },
+  CHI: { name: "Chile",            iso2: "cl" },
+  CIV: { name: "Costa do Marfim",  iso2: "ci" },
+  CMR: { name: "Camarões",         iso2: "cm" },
+  COL: { name: "Colômbia",         iso2: "co" },
+  CPV: { name: "Cabo Verde",       iso2: "cv" },
+  CRC: { name: "Costa Rica",       iso2: "cr" },
+  CRO: { name: "Croácia",          iso2: "hr" },
+  CZE: { name: "Rep. Tcheca",      iso2: "cz" },
+  DEN: { name: "Dinamarca",        iso2: "dk" },
+  ECU: { name: "Equador",          iso2: "ec" },
+  EGY: { name: "Egito",            iso2: "eg" },
+  ENG: { name: "Inglaterra",       iso2: "gb-eng" },
+  ESP: { name: "Espanha",          iso2: "es" },
+  FRA: { name: "França",           iso2: "fr" },
+  GER: { name: "Alemanha",         iso2: "de" },
+  GHA: { name: "Gana",             iso2: "gh" },
+  IRN: { name: "Irã",              iso2: "ir" },
+  IRQ: { name: "Iraque",           iso2: "iq" },
+  ITA: { name: "Itália",           iso2: "it" },
+  JAM: { name: "Jamaica",          iso2: "jm" },
+  JOR: { name: "Jordânia",         iso2: "jo" },
+  JPN: { name: "Japão",            iso2: "jp" },
+  KOR: { name: "Coreia do Sul",    iso2: "kr" },
+  KSA: { name: "Arábia Saudita",   iso2: "sa" },
+  MAR: { name: "Marrocos",         iso2: "ma" },
+  MEX: { name: "México",           iso2: "mx" },
+  NAI: { name: "Namíbia",          iso2: "na" },
+  NAM: { name: "Namíbia",          iso2: "na" },
+  NED: { name: "Holanda",          iso2: "nl" },
+  NGA: { name: "Nigéria",          iso2: "ng" },
+  NOR: { name: "Noruega",          iso2: "no" },
+  NZL: { name: "Nova Zelândia",    iso2: "nz" },
+  PAN: { name: "Panamá",           iso2: "pa" },
+  PAR: { name: "Paraguai",         iso2: "py" },
+  POR: { name: "Portugal",         iso2: "pt" },
+  QAT: { name: "Catar",            iso2: "qa" },
+  RSA: { name: "África do Sul",    iso2: "za" },
+  SCO: { name: "Escócia",          iso2: "gb-sct" },
+  SEN: { name: "Senegal",          iso2: "sn" },
+  SRB: { name: "Sérvia",           iso2: "rs" },
+  SUI: { name: "Suíça",            iso2: "ch" },
+  SWE: { name: "Suécia",           iso2: "se" },
+  TUN: { name: "Tunísia",          iso2: "tn" },
+  TUR: { name: "Turquia",          iso2: "tr" },
+  UKR: { name: "Ucrânia",          iso2: "ua" },
+  URU: { name: "Uruguai",          iso2: "uy" },
+  USA: { name: "Estados Unidos",   iso2: "us" },
+  UZB: { name: "Uzbequistão",      iso2: "uz" },
+  VEN: { name: "Venezuela",        iso2: "ve" },
+};
+
+function flagUrl(code: string): string | null {
+  const iso2 = COUNTRY_MAP[code]?.iso2;
+  return iso2 ? `https://flagcdn.com/w20/${iso2}.png` : null;
+}
+
 /* ── SVG geometry ────────────────────────────────────────────────────── */
 
 const SVG_W   = 760;
@@ -193,25 +260,45 @@ function TeamMultiSelect({
   selected:  string[];
   onChange:  (v: string[]) => void;
 }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
+  const [open,  setOpen]  = useState(false);
+  const [query, setQuery] = useState("");
+  const ref      = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     function onOut(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+        setQuery("");
+      }
     }
     document.addEventListener("mousedown", onOut);
     return () => document.removeEventListener("mousedown", onOut);
   }, []);
 
+  useEffect(() => {
+    if (open) setTimeout(() => inputRef.current?.focus(), 50);
+    else setQuery("");
+  }, [open]);
+
   function toggle(c: string) {
     onChange(selected.includes(c) ? selected.filter((x) => x !== c) : [...selected, c]);
   }
 
+  const filtered = query.trim()
+    ? countries.filter((c) => {
+        const q = query.toLowerCase();
+        return (
+          c.toLowerCase().includes(q) ||
+          (COUNTRY_MAP[c]?.name.toLowerCase().includes(q) ?? false)
+        );
+      })
+    : countries;
+
   const label =
     selected.length === 0 ? "Todas as seleções"
     : selected.length <= 3 ? selected.join(", ")
-    : `${selected.slice(0, 2).join(", ")} +${selected.length - 2}`;
+    : `${selected.slice(0, 3).join(", ")} +${selected.length - 3}`;
 
   return (
     <div ref={ref} style={{ position: "relative" }}>
@@ -235,31 +322,64 @@ function TeamMultiSelect({
 
       {open && (
         <div style={{
-          position: "absolute", zIndex: 30, marginTop: 4, width: 224,
+          position: "absolute", zIndex: 30, marginTop: 4, width: 270,
           background: "#050d2e", border: "1px solid #1e3a8a55",
           borderRadius: 9, boxShadow: "0 8px 32px #000a", overflow: "hidden",
         }}>
+          {/* Header */}
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 12px", borderBottom: "1px solid #1e3a8a30" }}>
             <span style={{ fontSize: 11, color: "#4a6890" }}>
               {selected.length === 0 ? "Todas" : `${selected.length} selecionadas`}
             </span>
             {selected.length > 0 && (
-              <button onClick={() => { onChange([]); setOpen(false); }}
+              <button onClick={() => { onChange([]); }}
                 style={{ fontSize: 11, color: "#10b981", background: "none", border: "none", cursor: "pointer" }}>
                 Limpar
               </button>
             )}
           </div>
-          <div style={{ overflowY: "auto", maxHeight: 208, padding: "4px 0" }}>
-            {countries.map((c) => (
-              <label key={c}
-                style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 12px", cursor: "pointer" }}
-                className="hover:bg-[#0a162880]">
-                <input type="checkbox" checked={selected.includes(c)} onChange={() => toggle(c)}
-                  className="accent-emerald-500 w-3 h-3 shrink-0" />
-                <span style={{ fontSize: 11, color: "#94a3b8" }}>{c}</span>
-              </label>
-            ))}
+          {/* Search */}
+          <div style={{ padding: "6px 8px", borderBottom: "1px solid #1e3a8a25" }}>
+            <input
+              ref={inputRef}
+              type="text"
+              placeholder="Buscar seleção…"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              style={{
+                width: "100%", background: "#030812",
+                border: "1px solid #1e3a8a40", borderRadius: 6,
+                padding: "4px 8px", fontSize: 11, color: "#94a3b8", outline: "none",
+              }}
+              className="placeholder-[#3a5a7a]"
+            />
+          </div>
+          {/* List */}
+          <div style={{ overflowY: "auto", maxHeight: 200, padding: "4px 0" }}>
+            {filtered.length === 0 ? (
+              <p style={{ padding: "8px 12px", fontSize: 11, color: "#4a6890" }}>
+                Nenhuma seleção encontrada
+              </p>
+            ) : (
+              filtered.map((c) => (
+                <label key={c}
+                  style={{ display: "flex", alignItems: "center", gap: 7, padding: "5px 12px", cursor: "pointer" }}
+                  className="hover:bg-[#0a162880]">
+                  <input type="checkbox" checked={selected.includes(c)} onChange={() => toggle(c)}
+                    className="accent-emerald-500 w-3 h-3 shrink-0" />
+                  {flagUrl(c) && (
+                    <img src={flagUrl(c)!} alt={c} width={20} height={14}
+                      style={{ borderRadius: 2, flexShrink: 0, objectFit: "cover" }} />
+                  )}
+                  <span style={{ fontSize: 11, color: "#e2e8f0", fontWeight: 600, flexShrink: 0 }}>{c}</span>
+                  {COUNTRY_MAP[c]?.name && (
+                    <span style={{ fontSize: 10, color: "#6b8fc4", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {COUNTRY_MAP[c].name}
+                    </span>
+                  )}
+                </label>
+              ))
+            )}
           </div>
         </div>
       )}

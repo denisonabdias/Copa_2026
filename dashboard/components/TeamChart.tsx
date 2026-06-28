@@ -200,65 +200,70 @@ function countryCode(s: string): string {
    Country metadata (FIFA codes → flag + name)
    ──────────────────────────────────────────────────────────────────────── */
 
-const COUNTRY_MAP: Record<string, { name: string; flag: string }> = {
-  ALG: { name: "Argélia",          flag: "🇩🇿" },
-  ARG: { name: "Argentina",        flag: "🇦🇷" },
-  AUS: { name: "Austrália",        flag: "🇦🇺" },
-  AUT: { name: "Áustria",          flag: "🇦🇹" },
-  BEL: { name: "Bélgica",          flag: "🇧🇪" },
-  BIH: { name: "Bósnia e Herz.",   flag: "🇧🇦" },
-  BRA: { name: "Brasil",           flag: "🇧🇷" },
-  CAN: { name: "Canadá",           flag: "🇨🇦" },
-  CHI: { name: "Chile",            flag: "🇨🇱" },
-  CIV: { name: "Costa do Marfim",  flag: "🇨🇮" },
-  CMR: { name: "Camarões",         flag: "🇨🇲" },
-  COL: { name: "Colômbia",         flag: "🇨🇴" },
-  CPV: { name: "Cabo Verde",       flag: "🇨🇻" },
-  CRC: { name: "Costa Rica",       flag: "🇨🇷" },
-  CRO: { name: "Croácia",          flag: "🇭🇷" },
-  CZE: { name: "Rep. Tcheca",      flag: "🇨🇿" },
-  DEN: { name: "Dinamarca",        flag: "🇩🇰" },
-  ECU: { name: "Equador",          flag: "🇪🇨" },
-  EGY: { name: "Egito",            flag: "🇪🇬" },
-  ENG: { name: "Inglaterra",       flag: "🏴󠁧󠁢󠁥󠁮󠁧󠁿" },
-  ESP: { name: "Espanha",          flag: "🇪🇸" },
-  FRA: { name: "França",           flag: "🇫🇷" },
-  GER: { name: "Alemanha",         flag: "🇩🇪" },
-  GHA: { name: "Gana",             flag: "🇬🇭" },
-  IRN: { name: "Irã",              flag: "🇮🇷" },
-  IRQ: { name: "Iraque",           flag: "🇮🇶" },
-  ITA: { name: "Itália",           flag: "🇮🇹" },
-  JAM: { name: "Jamaica",          flag: "🇯🇲" },
-  JOR: { name: "Jordânia",         flag: "🇯🇴" },
-  JPN: { name: "Japão",            flag: "🇯🇵" },
-  KOR: { name: "Coreia do Sul",    flag: "🇰🇷" },
-  KSA: { name: "Arábia Saudita",   flag: "🇸🇦" },
-  MAR: { name: "Marrocos",         flag: "🇲🇦" },
-  MEX: { name: "México",           flag: "🇲🇽" },
-  NAI: { name: "Namíbia",          flag: "🇳🇦" },
-  NAM: { name: "Namíbia",          flag: "🇳🇦" },
-  NED: { name: "Holanda",          flag: "🇳🇱" },
-  NGA: { name: "Nigéria",          flag: "🇳🇬" },
-  NOR: { name: "Noruega",          flag: "🇳🇴" },
-  NZL: { name: "Nova Zelândia",    flag: "🇳🇿" },
-  PAN: { name: "Panamá",           flag: "🇵🇦" },
-  PAR: { name: "Paraguai",         flag: "🇵🇾" },
-  POR: { name: "Portugal",         flag: "🇵🇹" },
-  QAT: { name: "Catar",            flag: "🇶🇦" },
-  RSA: { name: "África do Sul",    flag: "🇿🇦" },
-  SCO: { name: "Escócia",          flag: "🏴󠁧󠁢󠁳󠁣󠁴󠁿" },
-  SEN: { name: "Senegal",          flag: "🇸🇳" },
-  SRB: { name: "Sérvia",           flag: "🇷🇸" },
-  SUI: { name: "Suíça",            flag: "🇨🇭" },
-  SWE: { name: "Suécia",           flag: "🇸🇪" },
-  TUN: { name: "Tunísia",          flag: "🇹🇳" },
-  TUR: { name: "Turquia",          flag: "🇹🇷" },
-  UKR: { name: "Ucrânia",          flag: "🇺🇦" },
-  URU: { name: "Uruguai",          flag: "🇺🇾" },
-  USA: { name: "Estados Unidos",   flag: "🇺🇸" },
-  UZB: { name: "Uzbequistão",      flag: "🇺🇿" },
-  VEN: { name: "Venezuela",        flag: "🇻🇪" },
+const COUNTRY_MAP: Record<string, { name: string; iso2: string }> = {
+  ALG: { name: "Argélia",          iso2: "dz" },
+  ARG: { name: "Argentina",        iso2: "ar" },
+  AUS: { name: "Austrália",        iso2: "au" },
+  AUT: { name: "Áustria",          iso2: "at" },
+  BEL: { name: "Bélgica",          iso2: "be" },
+  BIH: { name: "Bósnia e Herz.",   iso2: "ba" },
+  BRA: { name: "Brasil",           iso2: "br" },
+  CAN: { name: "Canadá",           iso2: "ca" },
+  CHI: { name: "Chile",            iso2: "cl" },
+  CIV: { name: "Costa do Marfim",  iso2: "ci" },
+  CMR: { name: "Camarões",         iso2: "cm" },
+  COL: { name: "Colômbia",         iso2: "co" },
+  CPV: { name: "Cabo Verde",       iso2: "cv" },
+  CRC: { name: "Costa Rica",       iso2: "cr" },
+  CRO: { name: "Croácia",          iso2: "hr" },
+  CZE: { name: "Rep. Tcheca",      iso2: "cz" },
+  DEN: { name: "Dinamarca",        iso2: "dk" },
+  ECU: { name: "Equador",          iso2: "ec" },
+  EGY: { name: "Egito",            iso2: "eg" },
+  ENG: { name: "Inglaterra",       iso2: "gb-eng" },
+  ESP: { name: "Espanha",          iso2: "es" },
+  FRA: { name: "França",           iso2: "fr" },
+  GER: { name: "Alemanha",         iso2: "de" },
+  GHA: { name: "Gana",             iso2: "gh" },
+  IRN: { name: "Irã",              iso2: "ir" },
+  IRQ: { name: "Iraque",           iso2: "iq" },
+  ITA: { name: "Itália",           iso2: "it" },
+  JAM: { name: "Jamaica",          iso2: "jm" },
+  JOR: { name: "Jordânia",         iso2: "jo" },
+  JPN: { name: "Japão",            iso2: "jp" },
+  KOR: { name: "Coreia do Sul",    iso2: "kr" },
+  KSA: { name: "Arábia Saudita",   iso2: "sa" },
+  MAR: { name: "Marrocos",         iso2: "ma" },
+  MEX: { name: "México",           iso2: "mx" },
+  NAI: { name: "Namíbia",          iso2: "na" },
+  NAM: { name: "Namíbia",          iso2: "na" },
+  NED: { name: "Holanda",          iso2: "nl" },
+  NGA: { name: "Nigéria",          iso2: "ng" },
+  NOR: { name: "Noruega",          iso2: "no" },
+  NZL: { name: "Nova Zelândia",    iso2: "nz" },
+  PAN: { name: "Panamá",           iso2: "pa" },
+  PAR: { name: "Paraguai",         iso2: "py" },
+  POR: { name: "Portugal",         iso2: "pt" },
+  QAT: { name: "Catar",            iso2: "qa" },
+  RSA: { name: "África do Sul",    iso2: "za" },
+  SCO: { name: "Escócia",          iso2: "gb-sct" },
+  SEN: { name: "Senegal",          iso2: "sn" },
+  SRB: { name: "Sérvia",           iso2: "rs" },
+  SUI: { name: "Suíça",            iso2: "ch" },
+  SWE: { name: "Suécia",           iso2: "se" },
+  TUN: { name: "Tunísia",          iso2: "tn" },
+  TUR: { name: "Turquia",          iso2: "tr" },
+  UKR: { name: "Ucrânia",          iso2: "ua" },
+  URU: { name: "Uruguai",          iso2: "uy" },
+  USA: { name: "Estados Unidos",   iso2: "us" },
+  UZB: { name: "Uzbequistão",      iso2: "uz" },
+  VEN: { name: "Venezuela",        iso2: "ve" },
 };
+
+function flagUrl(code: string): string | null {
+  const iso2 = COUNTRY_MAP[code]?.iso2;
+  return iso2 ? `https://flagcdn.com/w20/${iso2}.png` : null;
+}
 
 /* ────────────────────────────────────────────────────────────────────────
    TeamHighlightMultiSelect
@@ -315,9 +320,9 @@ function TeamHighlightMultiSelect({
   const label =
     selected.length === 0 ? "Nenhuma destacada"
     : selected.length === countries.length ? "Todas destacadas"
-    : selected.length <= 2
-      ? selected.map((c) => `${COUNTRY_MAP[c]?.flag ?? ""} ${c}`).join("  ")
-      : `${selected.slice(0, 2).map((c) => `${COUNTRY_MAP[c]?.flag ?? ""} ${c}`).join("  ")} +${selected.length - 2}`;
+    : selected.length <= 3
+      ? selected.join(", ")
+      : `${selected.slice(0, 3).join(", ")} +${selected.length - 3}`;
 
   return (
     <div ref={ref} style={{ position: "relative" }}>
@@ -396,8 +401,9 @@ function TeamHighlightMultiSelect({
                     className="hover:bg-[#0a162880]">
                     <input type="checkbox" checked={selected.includes(c)} onChange={() => toggle(c)}
                       className="accent-emerald-500 w-3 h-3 shrink-0" />
-                    {info?.flag && (
-                      <span style={{ fontSize: 14, flexShrink: 0, lineHeight: 1 }}>{info.flag}</span>
+                    {flagUrl(c) && (
+                      <img src={flagUrl(c)!} alt={c} width={20} height={14}
+                        style={{ borderRadius: 2, flexShrink: 0, objectFit: "cover" }} />
                     )}
                     <span style={{ fontSize: 11, color: "#e2e8f0", fontWeight: 600, flexShrink: 0 }}>{c}</span>
                     {info?.name && (
@@ -659,19 +665,20 @@ function BubbleChart({
                   strokeWidth={isHi ? 1.5 : 0.5}
                   strokeOpacity={isHi ? 0.85 : 0.35} />
 
-                {/* Flag + code inside bubble */}
+                {/* Flag image + code inside bubble */}
                 {r >= 9 && (
                   <g>
-                    {r >= 14 && COUNTRY_MAP[code]?.flag && (
-                      <text x={cx} y={cy - (r >= 19 ? 5 : 3)}
-                        textAnchor="middle"
-                        fontSize={r >= 19 ? 13 : 10}>
-                        {COUNTRY_MAP[code].flag}
-                      </text>
+                    {r >= 15 && flagUrl(code) && (
+                      <image
+                        href={flagUrl(code)!}
+                        x={(cx - 10).toFixed(1)}
+                        y={(cy - r * 0.72).toFixed(1)}
+                        width="20" height="14"
+                      />
                     )}
                     <text
                       x={cx}
-                      y={r >= 14 ? cy + (r >= 19 ? 10 : 8) : cy + 3.5}
+                      y={r >= 15 ? (cy + r * 0.38).toFixed(1) : (cy + 3.5).toFixed(1)}
                       textAnchor="middle"
                       fill={isHi ? "#fff" : "#e2e8f0"}
                       fontSize={r >= 16 ? 9 : 7}
@@ -688,7 +695,7 @@ function BubbleChart({
                     textAnchor={la}
                     fill="#fff" fontSize={10.5}
                     fontWeight="700" opacity="0.95">
-                    {COUNTRY_MAP[code]?.flag ?? ""}{" "}{t.pais}{COUNTRY_MAP[code]?.name ? ` · ${COUNTRY_MAP[code].name}` : ""}
+                    {t.pais}{COUNTRY_MAP[code]?.name ? ` · ${COUNTRY_MAP[code].name}` : ""}
                   </text>
                 )}
               </g>
