@@ -665,20 +665,12 @@ function BubbleChart({
                   strokeWidth={isHi ? 1.5 : 0.5}
                   strokeOpacity={isHi ? 0.85 : 0.35} />
 
-                {/* Flag image + code inside bubble */}
+                {/* Code inside bubble */}
                 {r >= 9 && (
                   <g>
-                    {r >= 15 && flagUrl(code) && (
-                      <image
-                        href={flagUrl(code)!}
-                        x={(cx - 10).toFixed(1)}
-                        y={(cy - r * 0.72).toFixed(1)}
-                        width="20" height="14"
-                      />
-                    )}
                     <text
                       x={cx}
-                      y={r >= 15 ? (cy + r * 0.38).toFixed(1) : (cy + 3.5).toFixed(1)}
+                      y={(cy + 3.5).toFixed(1)}
                       textAnchor="middle"
                       fill={isHi ? "#fff" : "#e2e8f0"}
                       fontSize={r >= 16 ? 9 : 7}
