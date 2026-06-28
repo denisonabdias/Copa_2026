@@ -197,6 +197,70 @@ function countryCode(s: string): string {
 }
 
 /* ────────────────────────────────────────────────────────────────────────
+   Country metadata (FIFA codes → flag + name)
+   ──────────────────────────────────────────────────────────────────────── */
+
+const COUNTRY_MAP: Record<string, { name: string; flag: string }> = {
+  ALG: { name: "Argélia",          flag: "🇩🇿" },
+  ARG: { name: "Argentina",        flag: "🇦🇷" },
+  AUS: { name: "Austrália",        flag: "🇦🇺" },
+  AUT: { name: "Áustria",          flag: "🇦🇹" },
+  BEL: { name: "Bélgica",          flag: "🇧🇪" },
+  BIH: { name: "Bósnia e Herz.",   flag: "🇧🇦" },
+  BRA: { name: "Brasil",           flag: "🇧🇷" },
+  CAN: { name: "Canadá",           flag: "🇨🇦" },
+  CHI: { name: "Chile",            flag: "🇨🇱" },
+  CIV: { name: "Costa do Marfim",  flag: "🇨🇮" },
+  CMR: { name: "Camarões",         flag: "🇨🇲" },
+  COL: { name: "Colômbia",         flag: "🇨🇴" },
+  CPV: { name: "Cabo Verde",       flag: "🇨🇻" },
+  CRC: { name: "Costa Rica",       flag: "🇨🇷" },
+  CRO: { name: "Croácia",          flag: "🇭🇷" },
+  CZE: { name: "Rep. Tcheca",      flag: "🇨🇿" },
+  DEN: { name: "Dinamarca",        flag: "🇩🇰" },
+  ECU: { name: "Equador",          flag: "🇪🇨" },
+  EGY: { name: "Egito",            flag: "🇪🇬" },
+  ENG: { name: "Inglaterra",       flag: "🏴󠁧󠁢󠁥󠁮󠁧󠁿" },
+  ESP: { name: "Espanha",          flag: "🇪🇸" },
+  FRA: { name: "França",           flag: "🇫🇷" },
+  GER: { name: "Alemanha",         flag: "🇩🇪" },
+  GHA: { name: "Gana",             flag: "🇬🇭" },
+  IRN: { name: "Irã",              flag: "🇮🇷" },
+  IRQ: { name: "Iraque",           flag: "🇮🇶" },
+  ITA: { name: "Itália",           flag: "🇮🇹" },
+  JAM: { name: "Jamaica",          flag: "🇯🇲" },
+  JOR: { name: "Jordânia",         flag: "🇯🇴" },
+  JPN: { name: "Japão",            flag: "🇯🇵" },
+  KOR: { name: "Coreia do Sul",    flag: "🇰🇷" },
+  KSA: { name: "Arábia Saudita",   flag: "🇸🇦" },
+  MAR: { name: "Marrocos",         flag: "🇲🇦" },
+  MEX: { name: "México",           flag: "🇲🇽" },
+  NAI: { name: "Namíbia",          flag: "🇳🇦" },
+  NAM: { name: "Namíbia",          flag: "🇳🇦" },
+  NED: { name: "Holanda",          flag: "🇳🇱" },
+  NGA: { name: "Nigéria",          flag: "🇳🇬" },
+  NOR: { name: "Noruega",          flag: "🇳🇴" },
+  NZL: { name: "Nova Zelândia",    flag: "🇳🇿" },
+  PAN: { name: "Panamá",           flag: "🇵🇦" },
+  PAR: { name: "Paraguai",         flag: "🇵🇾" },
+  POR: { name: "Portugal",         flag: "🇵🇹" },
+  QAT: { name: "Catar",            flag: "🇶🇦" },
+  RSA: { name: "África do Sul",    flag: "🇿🇦" },
+  SCO: { name: "Escócia",          flag: "🏴󠁧󠁢󠁳󠁣󠁴󠁿" },
+  SEN: { name: "Senegal",          flag: "🇸🇳" },
+  SRB: { name: "Sérvia",           flag: "🇷🇸" },
+  SUI: { name: "Suíça",            flag: "🇨🇭" },
+  SWE: { name: "Suécia",           flag: "🇸🇪" },
+  TUN: { name: "Tunísia",          flag: "🇹🇳" },
+  TUR: { name: "Turquia",          flag: "🇹🇷" },
+  UKR: { name: "Ucrânia",          flag: "🇺🇦" },
+  URU: { name: "Uruguai",          flag: "🇺🇾" },
+  USA: { name: "Estados Unidos",   flag: "🇺🇸" },
+  UZB: { name: "Uzbequistão",      flag: "🇺🇿" },
+  VEN: { name: "Venezuela",        flag: "🇻🇪" },
+};
+
+/* ────────────────────────────────────────────────────────────────────────
    TeamHighlightMultiSelect
    ──────────────────────────────────────────────────────────────────────── */
 
@@ -207,16 +271,26 @@ function TeamHighlightMultiSelect({
   selected:  string[];
   onChange:  (v: string[]) => void;
 }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
+  const [open,  setOpen]  = useState(false);
+  const [query, setQuery] = useState("");
+  const ref      = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     function onOut(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+        setQuery("");
+      }
     }
     document.addEventListener("mousedown", onOut);
     return () => document.removeEventListener("mousedown", onOut);
   }, []);
+
+  useEffect(() => {
+    if (open) setTimeout(() => inputRef.current?.focus(), 50);
+    else setQuery("");
+  }, [open]);
 
   function toggle(c: string) {
     onChange(selected.includes(c) ? selected.filter((x) => x !== c) : [...selected, c]);
@@ -228,11 +302,22 @@ function TeamHighlightMultiSelect({
     onChange(allSelected ? [] : [...countries]);
   }
 
+  const filtered = query.trim()
+    ? countries.filter((c) => {
+        const q = query.toLowerCase();
+        return (
+          c.toLowerCase().includes(q) ||
+          (COUNTRY_MAP[c]?.name.toLowerCase().includes(q) ?? false)
+        );
+      })
+    : countries;
+
   const label =
     selected.length === 0 ? "Nenhuma destacada"
     : selected.length === countries.length ? "Todas destacadas"
-    : selected.length <= 2 ? selected.join(", ")
-    : `${selected.slice(0, 2).join(", ")} +${selected.length - 2}`;
+    : selected.length <= 2
+      ? selected.map((c) => `${COUNTRY_MAP[c]?.flag ?? ""} ${c}`).join("  ")
+      : `${selected.slice(0, 2).map((c) => `${COUNTRY_MAP[c]?.flag ?? ""} ${c}`).join("  ")} +${selected.length - 2}`;
 
   return (
     <div ref={ref} style={{ position: "relative" }}>
@@ -258,10 +343,11 @@ function TeamHighlightMultiSelect({
 
       {open && (
         <div style={{
-          position: "absolute", zIndex: 30, marginTop: 4, width: 240,
+          position: "absolute", zIndex: 30, marginTop: 4, width: 270,
           background: "#050d2e", border: "1px solid #1e3a8a55",
           borderRadius: 9, boxShadow: "0 8px 32px #000a", overflow: "hidden",
         }}>
+          {/* Header */}
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 12px", borderBottom: "1px solid #1e3a8a30" }}>
             <span style={{ fontSize: 11, color: "#4a6890" }}>
               {selected.length === 0 ? "Nenhuma" : `${selected.length} destacadas`}
@@ -279,16 +365,50 @@ function TeamHighlightMultiSelect({
               )}
             </div>
           </div>
-          <div style={{ overflowY: "auto", maxHeight: 208, padding: "4px 0" }}>
-            {countries.map((c) => (
-              <label key={c}
-                style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 12px", cursor: "pointer" }}
-                className="hover:bg-[#0a162880]">
-                <input type="checkbox" checked={selected.includes(c)} onChange={() => toggle(c)}
-                  className="accent-emerald-500 w-3 h-3 shrink-0" />
-                <span style={{ fontSize: 11, color: "#94a3b8" }}>{c}</span>
-              </label>
-            ))}
+          {/* Search */}
+          <div style={{ padding: "6px 8px", borderBottom: "1px solid #1e3a8a25" }}>
+            <input
+              ref={inputRef}
+              type="text"
+              placeholder="Buscar seleção…"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              style={{
+                width: "100%", background: "#030812",
+                border: "1px solid #1e3a8a40", borderRadius: 6,
+                padding: "4px 8px", fontSize: 11, color: "#94a3b8", outline: "none",
+              }}
+              className="placeholder-[#3a5a7a]"
+            />
+          </div>
+          {/* List */}
+          <div style={{ overflowY: "auto", maxHeight: 190, padding: "4px 0" }}>
+            {filtered.length === 0 ? (
+              <p style={{ padding: "8px 12px", fontSize: 11, color: "#4a6890" }}>
+                Nenhuma seleção encontrada
+              </p>
+            ) : (
+              filtered.map((c) => {
+                const info = COUNTRY_MAP[c];
+                return (
+                  <label key={c}
+                    style={{ display: "flex", alignItems: "center", gap: 7, padding: "5px 12px", cursor: "pointer" }}
+                    className="hover:bg-[#0a162880]">
+                    <input type="checkbox" checked={selected.includes(c)} onChange={() => toggle(c)}
+                      className="accent-emerald-500 w-3 h-3 shrink-0" />
+                    {info?.flag && (
+                      <span style={{ fontSize: 14, flexShrink: 0, lineHeight: 1 }}>{info.flag}</span>
+                    )}
+                    <span style={{ fontSize: 11, color: "#e2e8f0", fontWeight: 600, flexShrink: 0 }}>{c}</span>
+                    {info?.name && (
+                      <span style={{ fontSize: 10, color: "#6b8fc4", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {info.name}
+                      </span>
+                    )}
+                  </label>
+                );
+              })
+            )}
           </div>
         </div>
       )}
@@ -539,16 +659,27 @@ function BubbleChart({
                   strokeWidth={isHi ? 1.5 : 0.5}
                   strokeOpacity={isHi ? 0.85 : 0.35} />
 
-                {/* Country code inside bubble */}
+                {/* Flag + code inside bubble */}
                 {r >= 9 && (
-                  <text x={cx} y={cy + 3.5}
-                    textAnchor="middle"
-                    fill={isHi ? "#fff" : "#e2e8f0"}
-                    fontSize={r >= 16 ? 9 : 7}
-                    fontWeight={isHi ? "800" : "700"}
-                    opacity={isHi ? 1 : 0.85}>
-                    {code}
-                  </text>
+                  <g>
+                    {r >= 14 && COUNTRY_MAP[code]?.flag && (
+                      <text x={cx} y={cy - (r >= 19 ? 5 : 3)}
+                        textAnchor="middle"
+                        fontSize={r >= 19 ? 13 : 10}>
+                        {COUNTRY_MAP[code].flag}
+                      </text>
+                    )}
+                    <text
+                      x={cx}
+                      y={r >= 14 ? cy + (r >= 19 ? 10 : 8) : cy + 3.5}
+                      textAnchor="middle"
+                      fill={isHi ? "#fff" : "#e2e8f0"}
+                      fontSize={r >= 16 ? 9 : 7}
+                      fontWeight={isHi ? "800" : "700"}
+                      opacity={isHi ? 1 : 0.85}>
+                      {code}
+                    </text>
+                  </g>
                 )}
 
                 {/* Full name label for highlighted */}
@@ -557,7 +688,7 @@ function BubbleChart({
                     textAnchor={la}
                     fill="#fff" fontSize={10.5}
                     fontWeight="700" opacity="0.95">
-                    {t.pais}
+                    {COUNTRY_MAP[code]?.flag ?? ""}{" "}{t.pais}{COUNTRY_MAP[code]?.name ? ` · ${COUNTRY_MAP[code].name}` : ""}
                   </text>
                 )}
               </g>

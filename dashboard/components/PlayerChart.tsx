@@ -280,16 +280,26 @@ function PlayerMultiSelect({
   selected:   number[];
   onChange:   (v: number[]) => void;
 }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
+  const [open,  setOpen]  = useState(false);
+  const [query, setQuery] = useState("");
+  const ref      = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     function onOut(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+        setQuery("");
+      }
     }
     document.addEventListener("mousedown", onOut);
     return () => document.removeEventListener("mousedown", onOut);
   }, []);
+
+  useEffect(() => {
+    if (open) setTimeout(() => inputRef.current?.focus(), 50);
+    else setQuery("");
+  }, [open]);
 
   function toggle(id: number) {
     onChange(selected.includes(id) ? selected.filter((x) => x !== id) : [...selected, id]);
@@ -299,6 +309,10 @@ function PlayerMultiSelect({
     () => new Map(allPlayers.map((j) => [j.id, j])),
     [allPlayers],
   );
+
+  const visible = query.trim()
+    ? players.filter((j) => j.nome.toLowerCase().includes(query.toLowerCase()))
+    : players;
 
   const label =
     selected.length === 0
@@ -335,6 +349,7 @@ function PlayerMultiSelect({
           background: "#050d2e", border: "1px solid #1e3a8a55",
           borderRadius: 9, boxShadow: "0 8px 32px #000a", overflow: "hidden",
         }}>
+          {/* Header */}
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 12px", borderBottom: "1px solid #1e3a8a30" }}>
             <span style={{ fontSize: 11, color: "#4a6890" }}>
               {players.length} disponíveis{selected.length > 0 && ` · ${selected.length} fixados`}
@@ -346,13 +361,30 @@ function PlayerMultiSelect({
               </button>
             )}
           </div>
-          <div style={{ overflowY: "auto", maxHeight: 240, padding: "4px 0" }}>
-            {players.length === 0 ? (
+          {/* Search */}
+          <div style={{ padding: "6px 8px", borderBottom: "1px solid #1e3a8a25" }}>
+            <input
+              ref={inputRef}
+              type="text"
+              placeholder="Buscar jogador…"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              style={{
+                width: "100%", background: "#030812",
+                border: "1px solid #1e3a8a40", borderRadius: 6,
+                padding: "4px 8px", fontSize: 11, color: "#94a3b8", outline: "none",
+              }}
+              className="placeholder-[#3a5a7a]"
+            />
+          </div>
+          {/* List */}
+          <div style={{ overflowY: "auto", maxHeight: 220, padding: "4px 0" }}>
+            {visible.length === 0 ? (
               <p style={{ padding: "12px 16px", fontSize: 11, color: "#4a6890" }}>
-                Nenhum jogador com esses filtros
+                {query ? "Nenhum jogador encontrado" : "Nenhum jogador com esses filtros"}
               </p>
             ) : (
-              players.map((j) => (
+              visible.map((j) => (
                 <label key={j.id}
                   style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 12px", cursor: "pointer" }}
                   className="hover:bg-[#0a162880]">
