@@ -2,6 +2,7 @@
 """
 Cria a view stats_completos_por_time no Supabase (agregados de todas as 8 categorias por seleção).
 """
+import os
 import psycopg2
 
 DB_PROJECT_REF = "eeynngvwhhpvkitcecjx"
@@ -73,7 +74,7 @@ GROUP BY d.pais;
 conn = psycopg2.connect(
     host=f"db.{DB_PROJECT_REF}.supabase.co",
     port=5432, dbname="postgres", user="postgres",
-    password="SUPABASE_DB_PASSWORD_REDACTED", sslmode="require", connect_timeout=20,
+    password=os.environ.get("SUPABASE_DB_PASSWORD", ""), sslmode="require", connect_timeout=20,
 )
 conn.autocommit = True
 cur = conn.cursor()

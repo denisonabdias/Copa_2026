@@ -21,6 +21,12 @@ skills-lock.json
 status_atual.md
 test_view.py
 
+# Scripts de setup one-off (contêm conexão direta ao banco)
+reload_schema.py
+etapa4_team_view.py
+etapa4_setup.py
+upload_disciplina.py
+
 # Debug screenshots do Playwright
 Data_Site_Fifa/**/*.png
 
